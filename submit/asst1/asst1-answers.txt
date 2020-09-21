@@ -1,0 +1,282 @@
+STEP 4:
+
+(1) OUTPUT OF SYS161 KERNEL
+
+    sys161: System/161 release 2.0.3, compiled Aug  5 2015 14:02:38
+
+    OS/161 base system version 1.99.08
+    Copyright (c) 2000, 2001-2005, 2008-2011, 2013, 2014
+       President and Fellows of Harvard College.  All rights reserved.
+
+    Put-your-group-name-here's system version 0 (DUMBVM #1)
+
+    292k physical memory available
+    Device probe...
+    lamebus0 (system main bus)
+    emu0 at lamebus0
+    ltrace0 at lamebus0
+    ltimer0 at lamebus0
+    beep0 at ltimer0
+    rtclock0 at ltimer0
+    lrandom0 at lamebus0
+    random0 at lrandom0
+    lhd0 at lamebus0
+    lhd1 at lamebus0
+    lser0 at lamebus0
+    con0 at lser0
+
+    cpu0: MIPS/161 (System/161 2.x) features 0x0
+
+(2) OUTPUT OF GIT LOG
+
+    commit b580eb95eb0b0d1ab7615e2c0cd14f743f5589b2
+    Author: manek11 <manekgujral11@gmail.com>
+    Date:   Mon Sep 14 08:57:11 2020 -0400
+
+    Initial commit of os161 for CPEN331
+    
+(3) OUTPUT OF GIT TAG    
+    asst1-start
+
+
+IN-CLASS PART OF ASSIGNMENT:
+
+Question 1: In the book chapters and in class you were introduced to the mechanisms used to transfer control between user
+            processes and the operating system. Tell us where we can find the first line of OS/161 code that is executed when a trap occurs. 
+            Then tell us where control gets transferred to from that point. What about an interrupt? How does that differ? 
+
+
+Answer 1:   Trap is handled in ~/os161/src/kern/arch/mips/locore/exception-mips1.S
+            The j common_exception is called at line 69 for UTLB exception.
+            The j common_exception is called at line 87 for General exception.
+            
+            The common exception further calls mips_trap at line 260. This is located 
+            in  ~/os161/src/kern/arch/mips/locore/trap.c which further calls interrupt (mainbus_interrupt(tf)
+            at line 188) or syscall
+            or vm_fault (for TLB exceptions).
+            
+            Syscalls will go to ~/os161/src/kern/arch/mips/syscall/syscall.c
+            
+            vm_faults will go to ~/os161/src/kern/arch/mips/vm/dumbvm.c
+            
+            Interrupts will go to ~/os161/src/kern/arch/sys161/dev/lamebus_machdep.c
+            Timer interrupts are directed to ~/os161/src/kern/thread/clock.c from hardclock() -> Line 310.
+            Interprocessor interrupts are directed to ~/os161/src/kern/thread/thread.c from interprocessor_interrupt() ->Line 302.
+            Lamebus interrupts are directed to ~/os161/src/kern/dev/lamebus/lamebus.c from lamebus_interrupt(lamebus) ->Line 298.
+            For unkown interrupt (other than these three) panic is called at line 330 in lamebus_machdep.c
+            
+            They differ as they are both directed separately from mips_trap.
+            
+
+Question 2: Making a system call, such as write, ultimately leads to a trap. Find the code in OS/161 that invokes system calls from user 
+            programs and causes traps. In which file and on which lines did you find this code? 
+    
+Answer 2:   System call is called at line 84 in ~os161/src/userland/lib/libc/arch/mips/syscalls-mips.S
+
+
+Question 3: Why do you suppose there are libc functions in the "common" part of the source tree (common/libc) as well as in userland/lib/libc?
+
+Answer 3:   This is because they are commonly used c functions like strcpy, strlen, atoi, printf etc. and the kernel and userland need to access these.
+
+
+Question 4: Name two things that configure configures. What might invalidate that configuration and make you need/want to rerun it?
+
+Answer 4:   Two things that configure does: 
+            (1)Target platform and machine type (configure line 19)
+            (2)Check if the host system supports 4.4BSD <err.h>. (configure line 74)
+            
+            Reasons to have to rerun it:
+            (1) To use it on different host OS
+            (2) If you want to edit values
+            (3) To run it on different environment
+        
+            
+Question 5: What are some of the details which would make a function "machine dependent"? Why might it be important to maintain this separation, instead of just putting 
+            all of the code in one function?  
+            
+Answer 5:   Basically all functions that rely on registers, or any other instructions in assembly language would be machine -dependent.
+            It is important to maintain this separation so that we are aware of machine dependent functions in case any changes need to be made in the future or if the user 
+            switches their host system.
+
+
+Question 6: How large is a trapframe? Why?
+
+Answer 6:   Located in ~os161/src/kern/arch/mips/include/trapframe.h, there are 37 uint32_t in a trapframe. This sums up to a total of 4*37 = 148 bytes.
+            It is so because it has 31 MIPS registers, the epc, vaddr, status, cause, lo, and hi registers.
+    
+            
+Question 7: Under what circumstances should you re-run the kern/conf/config script?     
+
+Answer 7:   You should re-run the kern/conf/config script when:
+            (1) you change kernel configure options
+            (2) you add new source file in kernel    
+
+
+Question 8: Under what circumstances should you run bmake depend in kern/compile/DUMBVM?
+
+Answer 8:   When you configure DUMBVM or when you modify the #include in the source files.
+
+
+Question 9: Under what circumstances should you run bmake or bmake install in kern/compile/DUMBVM?
+
+Answer 9:   When you edit or modify kernel code. Also, when you need to build userland and compile,install the kernel. 
+
+
+Question 10: When you booted your kernel, you found that there were several commands that you could issue to experiment with it. Explain exactly where and what you 
+             would have to do to add a command that printed out, "Hello world!"
+             
+Answer 10:   To add a command we need to go to ~os161/src/kern/main/menu.c and add it in as a function like cmd_helloworld. This further needs to be added in 
+             the commandtable array as an element.
+             
+              
+Question 11: Why do we need to include these in your OS/161 distribution? Why can't you just use the standard utilities that are present on the machine on which you're working?    
+
+Answer 11:   We can't use the standard utilities present on our machine because they are not compiled for OS161 or MIPS.                              
+
+                                 
+Question 12: When a user program exits, what is done with the program's return value?
+
+Answer 12:   From ~os161/src/userland/lib/crt0/mips/crt0.S, we can see that when a user program exits, the program's return value of main is in v0. Also, it is moved to s0 (which 
+             is callee-save) so that we still have it in case exit() returns. Finally, it is also moved to a0 so that its the argument to exit.
+
+
+Question 13: Imagine that you wanted to add a new system call. List all the places that you would need to modify/add code. Then review your answers to questions 7-9 and note which
+             of those actions you need to take in order to test the new system call.                                   
+     
+Answer 13:   All places we would need to add/modify code are: 
+             (1)~os161/src/kern/include/syscall.h (Add a new entry syscall entry)
+             (2)~os161/src/kern/arch/mips/syscall/syscall.c (syscall will be included as a case)
+             (3)~os161/src/kern/syscall (Add a new .c file for the syscall)
+             
+             We will need to do the following for any edits made (configure, compile and install the kernel):
+             cd kern/conf
+             ./config DUMBVM
+             cd ~/os161/src/kern/compile/DUMBVM
+             bmake depend
+             bmake           
+             bmake install
+
+STEP 7
+
+Question 14: What is the name of the very first function that executes when OS161 starts up? 
+
+Answer 14:   The first function that executes when os161 starts up is _start() in the directory ~os161/src/kern/arch/sys161/main/start.S:54
+
+             
+Question 15: What is the very first assembly instruction that executes? 
+
+Answer 15:   The first assembly instruction that executes is on line 54 addiu sp, sp, -24
+
+
+Question 16: Set the breakpoints in the kernel function that shows the menu and in the kernel main function. Now tell GDB to display all the breakpoints that were set and copy
+             the output to your submit file. 
+
+Answer 16:  (gdb) info breakpoints
+            Num     Type           Disp Enb Address    What
+            1       breakpoint     keep y   0x800139e4 in kmain at ../../main/main.c:211
+            2       breakpoint     keep y   0x80014a0c in menu at ../../main/menu.c:697
+ 
+
+Question 17: Briefly describe what happens between the beginning of the execution and the invocation of the kernel main function. 
+
+Answer 17:   Sequence of steps that happen:
+             (1) Set up the bootstack
+             (2) Set up a stack frame on the real kernel stack
+             (3) Copy exception handler onto the first page of memory
+             (4) Flush instruction cache to make sure the above changes show through to instruction fetch
+             (5) Initialize the TLB
+             (6) Load NULL into the register s7 we use for curthread
+             (7) Set up the status register
+             (8) Load the CPU number into the PTBASE field of the CONTEXT register
+             (9) Load the GP register
+              
+              
+
+Question 18: What is the assembly language instruction that calls the kernel main function? 
+
+Answer 18:  Line 215 /home/jharvard/os161/src/kern/arch/sys161/main/start.S in calls kmain:  jal kmain
+
+
+Question 19: Step through the boot() code to find out what functions are called during early initialization. Paste the gdb output that shows you what these functions are.
+
+Answer 19:  (gdb) b 109
+            Breakpoint 2 at 0x8001375c: file ../../main/main.c, line 109.
+            (gdb) c
+            Continuing.
+
+            Breakpoint 2, boot () at ../../main/main.c:109
+            109		ram_bootstrap();
+            (gdb) n
+            110		proc_bootstrap();
+            (gdb) n
+            111		thread_bootstrap();
+            (gdb) n
+            112		hardclock_bootstrap();
+            (gdb) n
+            113		vfs_bootstrap();
+            (gdb) n
+            114		kheap_nextgeneration();
+
+
+Question 20: Set a breakpoint in thread_bootstrap(). Once you hit that breakpoint, at the very first line of that function, attempt to print the contents of the *bootcpu variable. 
+             Copy the output into the submit file. 
+             
+Answer 20:   (gdb) p *bootcpu
+             Cannot access memory at address 0x80000
+
+
+             
+Question 21: Now, step through that function until after the line that says 'bootcpu = cpu_create(0)'. Now print the content of *bootcpu and paste the output. 
+
+Answer 21:   (gdb) p *bootcpu
+             $1 = {c_self = 0x8003af00, c_number = 0, c_hardware_number = 0, 
+              c_curthread = 0x8003bf80, c_zombies = {tl_head = {tln_prev = 0x0, 
+                  tln_next = 0x8003af1c, tln_self = 0x0}, tl_tail = {
+                  tln_prev = 0x8003af10, tln_next = 0x0, tln_self = 0x0}, tl_count = 0}, 
+              c_hardclocks = 0, c_spinlocks = 0, c_isidle = false, c_runqueue = {
+                tl_head = {tln_prev = 0x0, tln_next = 0x8003af44, tln_self = 0x0}, 
+                tl_tail = {tln_prev = 0x8003af38, tln_next = 0x0, tln_self = 0x0}, 
+                tl_count = 0}, c_runqueue_lock = {splk_lock = 0, splk_holder = 0x0}, 
+              c_ipi_pending = 0, c_shootdown = {{ts_placeholder = 0} <repeats 16 times>}, 
+              c_numshootdown = 0, c_ipi_lock = {splk_lock = 0, splk_holder = 0x0}}
+
+
+
+Question 22: Print the allcpus array before the boot() function is executed. Paste the output. 
+
+Answer 22:   Breakpoint 1, kmain (arguments=0x80035c20 "") at ../../main/main.c:211
+             211		boot();
+             (gdb) array allcpus
+             0 items
+             (gdb) cpuarray allcpus
+             0 cpus     
+             (gdb) display allcpus
+             
+             1: allcpus = {arr = {v = 0x0, num = 0, max = 0}}
+        
+
+
+Question 23: Print again the same array after the boot() function is executed. Paste the output.  
+
+Answer 23:   (gdb) array allcpus
+             1 items
+             $1 = (void *) 0x8003af00
+             (gdb) cpuarray allcpus
+             1 cpus
+             cpu 0:
+             $2 = {c_self = 0x8003af00, c_number = 0, c_hardware_number = 0, 
+              c_curthread = 0x8003bf80, c_zombies = {tl_head = {tln_prev = 0x0, 
+                  tln_next = 0x8003af1c, tln_self = 0x0}, tl_tail = {
+                  tln_prev = 0x8003af10, tln_next = 0x0, tln_self = 0x0}, tl_count = 0}, 
+              c_hardclocks = 1, c_spinlocks = 0, c_isidle = false, c_runqueue = {
+                tl_head = {tln_prev = 0x0, tln_next = 0x8003af44, tln_self = 0x0}, 
+                tl_tail = {tln_prev = 0x8003af38, tln_next = 0x0, tln_self = 0x0}, 
+                tl_count = 0}, c_runqueue_lock = {splk_lock = 0, splk_holder = 0x0}, 
+              c_ipi_pending = 0, c_shootdown = {{ts_placeholder = 0} <repeats 16 times>}, 
+              c_numshootdown = 0, c_ipi_lock = {splk_lock = 0, splk_holder = 0x0}}
+              
+              1: allcpus = {arr = {v = 0x80039fe0, num = 1, max = 4}}
+
+
+             
+     
