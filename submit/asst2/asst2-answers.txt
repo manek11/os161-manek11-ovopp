@@ -1,0 +1,71 @@
+Step 2. Code reading exercises
+
+
+Q1. What happens to a thread when it exits (i.e., calls thread_exit())? What about when it sleeps?
+
+A1. When thread_exit() is called, the thread is first detached from the current process. Following that the stack guard band is checked and interrupts are turned off (splhigh) on 
+    this processor. After that thread_switch is called to S_ZOMBIE thread state which is the thread that has exited but still need to have thread_destroy called on it. If it doesn't 
+    switch for some reason a panic is called.
+    When a thread sleeps, wchan_sleep() is called and it yields the CPU to another process and goes to sleep on the specified wait channel WC whose associated spinlock is LK. The thread 
+    may not sleep in an interrupt handler. It also must hold the spinlock LK and no other spinlock. Then thread_switch(threadstate_t newstate, struct wchan *wc, struct spinlock *lk) 
+    called unlocks the the spinlock which needs to further be locked again before returning. 
+
+
+Q2. What function(s) handle(s) a context switch?
+
+A2. The functions that handle a context switch are: 
+    (1) thread_switch(threadstate_t newstate, struct wchan *wc, struct spinlock *lk)
+    (2) switchframe_switch(struct switchframe **prev, struct switchframe **next)
+    
+    
+Q3. What does it mean for a thread to be in each of the possible thread states?
+
+A3. There are 4 thread states-    
+    (1)S_RUN: running 
+	(2)S_READY: ready to run 
+	(3)S_SLEEP: sleeping 
+	(4)S_ZOMBIE: zombie; exited but not yet delleted 
+
+
+Q4. What does it mean to turn interrupts off? How is this accomplished? Why is it important to turn off interrupts in the thread subsystem code?
+
+A4. Turning interrupts of means that no thread can be interrupted and that all its operations are atomic. This can be accomplished by setting the IPL to its highest value (splhigh).
+    It is important to turn off interrupts in the thread subsystem code so that we can perform a thread_switch(), this can also happen if we're idle and want to return.
+    
+    
+Q5. What happens when a thread wakes up another thread? How does a sleeping thread get to run again?
+
+A5. When a thread wakes up another thread it grabs the sleeping thread from the channel using threadlist_remhead(&wc->wc_threads). Following which it calls 
+    thread_make_runnable(target, false) to get it ready to run and adds it to the run queue.
+    The sleeping thread gets to run again when it is returned by the void schedule(void) function and a context switch is called.
+    
+    
+Q6. What function(s) choose(s) the next thread to run?
+
+A6. The sheduler function i.e. void schedule(void) chooses the next thread to run.
+
+
+Q7. How does it (do they) pick the next thread?
+
+A7. If we do nothing,threads will run in round-robin fashion.
+
+
+Q8. What role does the hardware timer play in scheduling? What hardware independent function is called on a timer interrupt?
+
+A8. The hardclock() function calls both thread_consider_migration() and schedule(). This is called HZ times a second (on each processor) by the timer code. It further calls 
+    thread_yield() which results in a context switch. 
+
+
+Q9. Describe how wchan_sleep() and wchan_wakeone() are used to implement semaphores.
+
+A9. wchan_sleep() is called in the void P(struct semaphore *sem) function of the semaphore. It is also known as wait() where it is supposed to wait for semaphore value to become >0 
+    and then to decrement it. So till the semaphore becomes 0, wchan_sleep is called.
+    wchan_wakeone() is called in void V(struct semaphore *sem) function of the semaphore. It is also known as signal() where it is supposed to increment the semaphore value by 1. 
+    It is called after increment the value by 1 to wake up the thread sleeping on a wait channel. 
+    
+
+
+Q10. How does the implementation of wchan ensure that a thread never misses a wakeup signal: that another thread cannot attempt to awaken the first thread just as 
+     it is preparing to sleep, but before it is actually placed into the sleep queue?
+     
+A10. The implementation of wchan ensures that a thread never misses a wakeup signal because the thread is queued on the wait channel protected by the spinlock.     
