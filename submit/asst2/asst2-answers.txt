@@ -1,6 +1,5 @@
 Step 2. Code reading exercises
 
-
 Q1. What happens to a thread when it exits (i.e., calls thread_exit())? What about when it sleeps?
 
 A1. When thread_exit() is called, the thread is first detached from the current process. Following that the stack guard band is checked and interrupts are turned off (splhigh) on 
@@ -42,12 +41,13 @@ A5. When a thread wakes up another thread it grabs the sleeping thread from the 
     
 Q6. What function(s) choose(s) the next thread to run?
 
-A6. The sheduler function i.e. void schedule(void) chooses the next thread to run.
+A6. The sheduler function i.e. void schedule(void) chooses the next thread to run. It reshuffles the current CPU's run queue by job priority. 
+    Also, the thread switch function i.e. thread_switch(threadstate_t newstate, struct wchan *wc, struct spinlock *lk) is used to switch from one thread to another.
 
 
 Q7. How does it (do they) pick the next thread?
 
-A7. If we do nothing,threads will run in round-robin fashion.
+A7. If we do nothing,threads will run in round-robin fashion by using the scheduler function. Also, for thread_switch the next thread will be chosen from the runqueue.
 
 
 Q8. What role does the hardware timer play in scheduling? What hardware independent function is called on a timer interrupt?
