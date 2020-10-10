@@ -38,12 +38,14 @@
 #include "opt-synchprobs.h"
 
 
+
 /*
  * hardclock() is called on every CPU HZ times a second, possibly only
  * when the CPU is not idle, for scheduling.
  */
 
 /* hardclocks per second */
+
 
 #if OPT_SYNCHPROBS
 /* Make synchronization more exciting :) */
@@ -52,6 +54,7 @@
 /* More realistic value */
 #define HZ  100
 #endif
+
 
 void hardclock_bootstrap(void);
 void hardclock(void);

@@ -35,6 +35,8 @@ options sfs			# Always use the file system
 
 #options dumbvm			# Use your own VM system now.
 
+
 #options synchprobs		# Enable this only when doing the
 				# synchronization problems.
+
 

@@ -42,6 +42,7 @@
 #include <syscall.h>
 #include <test.h>
 
+
 #include "opt-synchprobs.h"
 
 #include "opt-sfs.h"
@@ -117,6 +118,7 @@ common_prog(int nargs, char **args)
 {
 	struct proc *proc;
 	int result;
+
 
 
 #if OPT_SYNCHPROBS
@@ -513,6 +515,7 @@ static const char *mainmenu[] = {
 	"[?o] Operations menu                ",
 	"[?t] Tests menu                     ",
 
+
 #if OPT_SYNCHPROBS
 	"[sp1] Air Balloon                   ",
 #endif
@@ -570,6 +573,7 @@ static struct {
 	/* in-kernel synchronization problem(s) */
 	{ "sp1",	airballoon },
 #endif
+
 
 	/* stats */
 	{ "kh",         cmd_kheapstats },

@@ -769,7 +769,6 @@ thread_startup(void (*entrypoint)(void *data1, unsigned long data2),
 	}
 #endif
 
-
 	/* Call the function. */
 	entrypoint(data1, data2);
 
