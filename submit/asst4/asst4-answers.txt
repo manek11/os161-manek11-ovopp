@@ -38,7 +38,7 @@ A4. vfs_close  - Close a vnode opened with vfs_open. Does not fail. line 100 ker
 
 Q5. What function forces the processor to switch into usermode? Is this function machine dependent?
     
-A5. mips_usermode() located on line 368: kern/arch/mips/locore/trap.c is used to force the processor to swithc into user mode which is called from:
+A5. mips_usermode() located on line 368: kern/arch/mips/locore/trap.c is used to force the processor to switch into user mode which is called from:
     - enter_new_process, for use by exec and equivalent.
     - enter_forked_process, in syscall.c, for use by fork.
     
@@ -49,7 +49,7 @@ Q6. In what file are copyin and copyout defined? memmove? Why can't copyin and c
 
 A6. copyin and cpyout are defined in ~os161/src/kern/vm/copyinout.c
     memmove is define in ~os161/src/common/libc/string/memmove.c
-    This is because memmove is a C standard function wheread copyin and copyout are not.
+    This is because memmove is a C standard function whereas copyin and copyout are not.
 
 
 Q7. What (briefly) is the purpose of userptr_t?
@@ -74,7 +74,7 @@ A9. 32/64 bits based on what the return value of v0 register of trapframe struct
 Q10. Why do you "probably want to change" the implementation of kill_curthread()?
 
 A10. Not accounted for all possible code values from MIPS exception codes from line 91: ~os161/src/kern/arch/mips/include/trapframe.h
-     All values cn be accounted by matching from trapframe.h to kern/include/kern/signal.h 
+     All values can be accounted by matching from trapframe.h to kern/include/kern/signal.h 
      Also, dont want to call panic.    
                   
 
@@ -121,4 +121,44 @@ A16. VOP_INCREF: Increment refcount.
      VOP_DECREF: Decrement refcount. Calls VOP_RECLAIM if the refcount hits zero.                  
         
      
-       
+Discussion for implementations:
+
+open():
+arguments: flags (7 flags: O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, O_EXCL, O_TRUNC, O_APPEND) and file name
+returns: non negative return, -1 for error
+
+checks for error: 
+STDIN_FILENO (0), STDOUT_FILENO (1), STDERR_FILENO(2)
+ENODEV	The device prefix of filename did not exist.
+ENOTDIR	A non-final component of filename was not a directory.
+ENOENT	A non-final component of filename did not exist.
+ENOENT	The named file does not exist, and O_CREAT was not specified.
+EEXIST	The named file exists, and O_EXCL was specified.
+EISDIR	The named object is a directory, and it was to be opened for writing.
+EMFILE	The process's file table was full, or a process-specific limit on open files was reached.
+ENFILE	The system file table is full, if such a thing exists, or a system-wide limit on open files was reached.
+ENXIO	The named object is a block device with no filesystem mounted on it.
+ENOSPC	The file was to be created, and the filesystem involved is full.
+EINVAL	flags contained invalid values.
+EIO	A hard I/O error occurred.
+EFAULT	filename was an invalid pointer.
+
+Doesn't do anything to the filepath. It accesses the file-name in the file table. Updates the file table if it adds a new file (O_CREAT).
+
+os161/src/kern/vfspath.c: vfs_open()
+kern/test/fstest.c: can be used to test
+#define SYS_open         45
+race conditions: If another thread or another process has the file, the thread can only read. if not, then have to deny access.
+refer to file descriptors in unix
+
+
+read():
+args: fd (file descriptor), void *buf ,size_t buflen
+returns: -1 for error, 0 - #bytes read is returned
+errors: 
+EBADF	fd is not a valid file descriptor, or was not opened for reading.
+EFAULT	Part or all of the address space pointed to by buf is invalid.
+EIO	    A hardware I/O error occurred reading the data.
+
+read accesses the current position of the file table, does not modify
+
