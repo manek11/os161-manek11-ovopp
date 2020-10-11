@@ -5,7 +5,7 @@
 #include <vnode.h>
 #include <uio.h>
 
-struct file_table file_table_arr[OPEN_MAX];
+// struct file_table file_table_arr[OPEN_MAX];
 
 int
 sys_open(const char *filename, int flags, mode_t mode){
@@ -100,13 +100,50 @@ sys_write(int fd, const void *buffer, size_t nbytes){
 
 off_t
 sys_lseek(int fd, off_t pos, int whence){
-    
+    if(fd < 0 || fd > OPEN_MAX){
+        return EBADF;
+    }
+    switch (whence)
+    {
+        case SEEK_SET:
+            file_table_arr[fd].offset = pos;
+            break;
+        
+        case SEEK_CUR:
+            file_table_arr[fd].offset += pos;
+            break;
+        
+        case SEEK_END:
+            struct stat mystat;
+            int ret = VOP_STAT(file_table_arr[fd].vnode,&mystat);
+            if(ret){
+                return ret;
+            }
+            file_table_arr[fd].offset = pos + mystat.st_size;
+            break;
+        default:
+            return EINVAL
+    }
+    return file_table_arr[fd].offset;
 };
 
 
 int
 sys_close(int fd){
-
+    if(fd < 0 || fd > OPEN_MAX){
+        return EBADF;
+    }
+    if(file_table_arr[fd] != NULL){
+        vfs_close(file_table_arr[fd]);
+        if(file_table_arr[fd].vnode.vn_refcount == 0){
+           vnode_cleanup(file_table_arr[fd].vnode);
+           kfree(file_table_arr[fd]);
+           return 0;
+        }
+    }
+    else{
+        return EBADF;
+    }
 };
 
 int
