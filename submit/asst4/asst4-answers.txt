@@ -6,9 +6,9 @@ A1. /* For e_ident[EI_MAG0..3] */
     #define	ELFMAG2		'L'
     #define	ELFMAG3		'F'
     These can be found on line 82: of elf.h ~os161/src/kern/include/elf.h
-     
+    Executable and Linkable Format (ELF) represents a common standard file format. 
     The ELF file header struct contains unsigned char	e_ident[ELF_NIDENT] /* magic number et al. */ at line 52.
-    
+    The ELF number specifies how the file should be interpreted.
 
 Q2. What is the difference between UIO_USERISPACE and UIO_USERSPACE? When should one use UIO_SYSSPACE instead?
 
@@ -21,8 +21,9 @@ A2. /* Source/destination. */
     u.uio_segflg = is_executable ? UIO_USERISPACE : UIO_USERSPACE 
     line 102: kern/syscall/loadelf.c:
     
-     line 83: kern/lib/uio.c (Translate the meaning)
-
+    line 83: kern/lib/uio.c (Translate the meaning)
+    UIO_USERISPACE keeps the process code of the user, while UIO_USERSPACE keeps the process data. 
+    UIO_SYSSPACE is used when there is a data transfer request inside kernel space to handles kernel data.
 
 Q3. Why can the struct uio that is used to read in a segment be allocated on the stack in load_segment() (i.e., where does the memory read actually go)?
 
@@ -49,7 +50,9 @@ Q6. In what file are copyin and copyout defined? memmove? Why can't copyin and c
 
 A6. copyin and cpyout are defined in ~os161/src/kern/vm/copyinout.c
     memmove is define in ~os161/src/common/libc/string/memmove.c
-    This is because memmove is a C standard function whereas copyin and copyout are not.
+    Memmove is a C standard function whereas copyin and copyout are not. 
+    Copyin and Copyout copies memory between kernel and user space, and checks if the user pointer do not access
+    inaccessible memory. Memmove does not check this.
 
 
 Q7. What (briefly) is the purpose of userptr_t?
@@ -123,6 +126,11 @@ A16. VOP_INCREF: Increment refcount.
      
 Discussion for implementations:
 
+remember to account for the return errors for methods used to implement.
+-- for write, read, lseek --
+userland/bin/tac/tac.c
+
+
 open():
 arguments: flags (7 flags: O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, O_EXCL, O_TRUNC, O_APPEND) and file name
 returns: non negative return, -1 for error
@@ -161,4 +169,88 @@ EFAULT	Part or all of the address space pointed to by buf is invalid.
 EIO	    A hardware I/O error occurred reading the data.
 
 read accesses the current position of the file table, does not modify
+doread() userland/bin/tac/tac.c copyin/copyout
 
+write():
+args: fd (file descriptor), const void *buffer, size_t nbytes)
+returns: the count of bytes written, should be positive. 0 means nothing could be written, but no error. -1 merans error, sets errno to a suitable error code.
+Error code: 
+The following error codes should be returned under the conditions given. Other error codes may be returned for other cases not mentioned here.
+ 	EBADF	fd is not a valid file descriptor, or was not opened for writing.
+    EFAULT	Part or all of the address space pointed to by buf is invalid.
+    ENOSPC	There is no free space remaining on the filesystem containing the file.
+    EIO	    A hardware I/O error occurred writing the data.
+
+modifies the file on the file table.
+dowrite() userland/bin/tac/tac.c
+
+
+close():
+args: fd (file descriptor)
+returns 0 success, -1 error
+handles errors:
+The following error codes should be returned under the conditions given. Other error codes may be returned for other cases not mentioned here.
+ 	EBADF	fd is not a valid file handle.
+    EIO	A hard I/O error occurred.
+doesn't modify anything in the file table.
+vfs_close() in vfspath.c
+
+
+lseek():
+args: fd, off_t pos, int whence
+alters the seek position
+returns the new position, on error -1.
+
+If whence is
+    SEEK_SET, the new position is pos.
+    SEEK_CUR, the new position is the current position plus pos.
+    SEEK_END, the new position is the position of end-of-file plus pos.
+    anything else, lseek fails.
+pos is a signed entity
+lseek modifies the file table. Changes the pointer location of the file.
+handles errors:
+The following error codes should be returned under the conditions given. Other error codes may be returned for other cases not mentioned here.
+ 	EBADF	fd is not a valid file descriptor, or was not opened for reading.
+    EFAULT	Part or all of the address space pointed to by buf is invalid.
+    EIO	A hardware I/O error occurred reading the data.
+
+dolseek() userland/bin/tac/tac.c
+
+
+
+chdir():
+args: pathname
+returns 0, -1 for error
+The following error codes should be returned under the conditions given. Other error codes may be returned for other errors not mentioned here.
+ 	ENODEV	The device prefix of pathname did not exist.
+    ENOTDIR	A non-final component of pathname was not a directory.
+    ENOTDIR	pathname did not refer to a directory.
+    ENOENT	pathname did not exist.
+    EIO	A hard I/O error occurred.
+    EFAULT	pathname was an invalid pointer.
+changes the pointer to the current directory, doesn't modify file table.
+vfs_chdir()
+
+
+
+__getcwd():
+args: char buffer, size(len of buffer);
+returns length of the data, -1 for error
+The following error codes should be returned under the conditions given. Other error codes may be returned for other cases not mentioned here.
+ 	ENOENT	A component of the pathname no longer exists.
+    EIO	A hard I/O error occurred.
+    EFAULT	buf points to an invalid address.
+Does not modify the file table.
+getcwd(): in userland/lib/libc/unix/getcwd.c
+
+
+dup2():
+args: old fd, new fd
+returns the newfd, -1 otherwise for errors
+The following error codes should be returned under the conditions given. Other error codes may be returned for other cases not mentioned here.
+ 	EBADF	oldfd is not a valid file handle, or newfd is a value that cannot be a valid file handle.
+    EMFILE	The process's file table was full, or a process-specific limit on open files was reached.
+    ENFILE	The system's file table was full, if such a thing is possible, or a global limit on open files was reached.
+Modifies file table
+Race condition, need to lock both files
+include <unistd.h> to access functions for dup2.
