@@ -36,13 +36,8 @@
 #include <current.h>
 #include <syscall.h>
 #include <copyinout.h>
-
-<<<<<<< HEAD
-=======
-
 #include <vfs.h>
 
->>>>>>> cf52f563ed3cb81d8e483fb79f652137c65b2aef
 /*
  * System call dispatcher.
  *
