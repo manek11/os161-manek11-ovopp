@@ -35,11 +35,10 @@
 #include <thread.h>
 #include <current.h>
 #include <syscall.h>
+#include <copyinout.h>
 
 
 #include <vfs.h>
-#include <unistd.h>
-
 
 /*
  * System call dispatcher.
@@ -115,39 +114,38 @@ syscall(struct trapframe *tf)
 
 	    /* Add stuff here */
 	    case SYS_open:
-	    err = open(tf->tf_a0,tf->tf_a1, tf->tf_a2);
+	    err = 0;
 	    break;
 	    
 	    case SYS_read:
-	    err = read(tf->tf_a0, tf->tf_a1, tf->tf_a2);
-	    //err = NULL;
+	    err = sys_read((int) tf->tf_a0, (void*)tf->tf_a1, (size_t)tf->tf_a2);
 	    break;
 	    
 	    case SYS_close:
-	    err = close(tf->tf_a0);
+	    err = 0;
 	    break;
 	    
 	    case SYS_write:
-	    err = write(tf->tf_a0, tf->tf_a1, tf->tf_a2);
+	    err = sys_write((int)tf->tf_a0, (const void*)tf->tf_a1, (size_t)tf->tf_a2);
 	    break;
 	    
 	    case SYS_lseek:
-	    err = lseek(tf->tf_a0, tf->tf_a1, tf->tf_a2);
+	    err = 0;
 	    //err = NULL;
 	    break;
 	    
 	    case SYS_chdir:
-	    err = vfs_chdir(tf->tf_a0);
+	    err = 0;
 	    //err = NULL;
 	    break;
 	    
 	    case SYS_dup2:
-	    err = dup2(tf->tf_a0, tf->tf_a1);
-	    //err = NULL;
+	    // err = dup2(tf->tf_a0, tf->tf_a1);
+	    err = 0;
 	    break;
 	    
 	    case SYS___getcwd:
-	    err = getcwd(tf->tf_a0);
+	    err = 0;
 	    //err = NULL;
 	    break;
 
@@ -198,4 +196,15 @@ void
 enter_forked_process(struct trapframe *tf)
 {
 	(void)tf;
+}
+
+int
+sys_read(int fd, void *buf, size_t buflen){         
+    return copyin((const_userptr_t)fd, buf, buflen);
+}
+
+int
+sys_write(int fd, const void *buf, size_t nbytes){
+
+    return copyout(buf,(userptr_t)fd, nbytes);
 }
