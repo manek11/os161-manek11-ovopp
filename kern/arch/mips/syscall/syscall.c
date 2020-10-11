@@ -118,7 +118,7 @@ syscall(struct trapframe *tf)
 	    break;
 	    
 	    case SYS_read:
-	    err = sys_read((int) tf->tf_a0, (void*)tf->tf_a1, (size_t)tf->tf_a2);
+	    err = sys_read((int) tf->tf_a0, (void*)tf->tf_a1, (size_t)tf->tf_a2, &retval);
 	    break;
 	    
 	    case SYS_close:
@@ -126,7 +126,7 @@ syscall(struct trapframe *tf)
 	    break;
 	    
 	    case SYS_write:
-	    err = sys_write((int)tf->tf_a0, (const void*)tf->tf_a1, (size_t)tf->tf_a2);
+	    err = sys_write((int)tf->tf_a0, (const void*)tf->tf_a1, (size_t)tf->tf_a2, &retval);
 	    break;
 	    
 	    case SYS_lseek:
@@ -199,12 +199,15 @@ enter_forked_process(struct trapframe *tf)
 }
 
 int
-sys_read(int fd, void *buf, size_t buflen){         
-    return copyin((const_userptr_t)fd, buf, buflen);
+sys_read(int fd, void *buf, size_t buflen, int32_t*ret_val){
+             
+    *ret_val = copyin((const_userptr_t)fd, buf, buflen);
+    return 0;
 }
 
 int
-sys_write(int fd, const void *buf, size_t nbytes){
+sys_write(int fd, const void *buf, size_t nbytes, int32_t*ret_val){
 
-    return copyout(buf,(userptr_t)fd, nbytes);
+    *ret_val = copyout(buf,(userptr_t)fd, nbytes);
+    return 0;
 }
