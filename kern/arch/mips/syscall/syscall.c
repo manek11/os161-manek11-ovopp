@@ -37,6 +37,10 @@
 #include <syscall.h>
 
 
+#include <vfs.h>
+#include <unistd.h>
+
+
 /*
  * System call dispatcher.
  *
