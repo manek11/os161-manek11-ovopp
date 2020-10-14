@@ -115,7 +115,8 @@ syscall(struct trapframe *tf)
 	    break;
 	    
 	    case SYS_read:
-	    err = NULL;
+	    err = read(tf->tf_a0, tf->tf_a1, tf->tf_a2);
+	    //err = NULL;
 	    break;
 	    
 	    case SYS_close:
@@ -123,15 +124,17 @@ syscall(struct trapframe *tf)
 	    break;
 	    
 	    case SYS_write:
-	    err = NULL;
+	    //err = NULL;
 	    break;
 	    
 	    case SYS_lseek:
-	    err = NULL;
+	    err = lseek(tf->tf_a0, tf->tf_a1, tf->tf_a2);
+	    //err = NULL;
 	    break;
 	    
 	    case SYS_chdir:
-	    err = NULL;
+	    err = 
+	    //err = NULL;
 	    break;
 	    
 	    case SYS_dup2:
