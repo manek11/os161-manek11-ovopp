@@ -111,7 +111,7 @@ syscall(struct trapframe *tf)
 
 	    /* Add stuff here */
 	    case SYS_open:
-	    err = NULL;
+	    err = open(tf->tf_a0,tf->tf_a1, tf->tf_a2);
 	    break;
 	    
 	    case SYS_read:
@@ -120,11 +120,11 @@ syscall(struct trapframe *tf)
 	    break;
 	    
 	    case SYS_close:
-	    err = NULL;
+	    err = close(tf->tf_a0);
 	    break;
 	    
 	    case SYS_write:
-	    //err = NULL;
+	    err = write(tf->tf_a0, tf->tf_a1, tf->tf_a2);
 	    break;
 	    
 	    case SYS_lseek:
@@ -133,16 +133,18 @@ syscall(struct trapframe *tf)
 	    break;
 	    
 	    case SYS_chdir:
-	    err = 
+	    err = vfs_chdir(tf->tf_a0);
 	    //err = NULL;
 	    break;
 	    
 	    case SYS_dup2:
-	    err = NULL;
+	    err = dup2(tf->tf_a0, tf->tf_a1);
+	    //err = NULL;
 	    break;
 	    
 	    case SYS___getcwd:
-	    err = NULL;
+	    err = getcwd(tf->tf_a0);
+	    //err = NULL;
 	    break;
 
 	    default:
