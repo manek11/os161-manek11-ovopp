@@ -35,7 +35,14 @@
 #include <thread.h>
 #include <current.h>
 #include <syscall.h>
+#include <copyinout.h>
 
+<<<<<<< HEAD
+=======
+
+#include <vfs.h>
+
+>>>>>>> cf52f563ed3cb81d8e483fb79f652137c65b2aef
 /*
  * System call dispatcher.
  *
@@ -144,6 +151,40 @@ syscall(struct trapframe *tf)
 	    case SYS___getcwd:
 	    //err = getcwd(tf->tf_a0);
 	    err = NULL;
+
+	    break;
+	    
+	    case SYS_read:
+	    err = sys_read((int) tf->tf_a0, (void*)tf->tf_a1, (size_t)tf->tf_a2, &retval);
+	    break;
+	    
+	    case SYS_close:
+	    err = 0;
+	    break;
+	    
+	    case SYS_write:
+	    err = sys_write((int)tf->tf_a0, (const void*)tf->tf_a1, (size_t)tf->tf_a2, &retval);
+	    break;
+	    
+	    case SYS_lseek:
+	    err = 0;
+	    //err = NULL;
+	    break;
+	    
+	    case SYS_chdir:
+	    err = 0;
+	    //err = NULL;
+	    break;
+	    
+	    case SYS_dup2:
+	    // err = dup2(tf->tf_a0, tf->tf_a1);
+	    err = 0;
+	    break;
+	    
+	    case SYS___getcwd:
+	    err = 0;
+	    //err = NULL;
+
 	    break;
 
 	    default:
@@ -195,6 +236,7 @@ enter_forked_process(struct trapframe *tf)
 	(void)tf;
 }
 
+
 ///////////
 
 /* OUR IMPLEMENATATION*/
@@ -219,5 +261,18 @@ close(int fd){
         return EBADF;
     }
     
+
+int
+sys_read(int fd, void *buf, size_t buflen, int32_t*ret_val){
+             
+    *ret_val = copyin((const_userptr_t)fd, buf, buflen);
+    return 0;
+}
+
+int
+sys_write(int fd, const void *buf, size_t nbytes, int32_t*ret_val){
+
+    *ret_val = copyout(buf,(userptr_t)fd, nbytes);
+
     return 0;
 }
