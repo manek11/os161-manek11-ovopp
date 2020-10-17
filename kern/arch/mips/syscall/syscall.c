@@ -36,11 +36,6 @@
 #include <current.h>
 #include <syscall.h>
 
-
-#include <vfs.h>
-#include <unistd.h>
-
-
 /*
  * System call dispatcher.
  *
@@ -115,40 +110,40 @@ syscall(struct trapframe *tf)
 
 	    /* Add stuff here */
 	    case SYS_open:
-	    err = open(tf->tf_a0,tf->tf_a1, tf->tf_a2);
+	    err = NULL;
 	    break;
 	    
 	    case SYS_read:
-	    err = read(tf->tf_a0, tf->tf_a1, tf->tf_a2);
-	    //err = NULL;
+	    //err = read(tf->tf_a0, tf->tf_a1, tf->tf_a2);
+	    err = NULL;
 	    break;
 	    
 	    case SYS_close:
-	    err = close(tf->tf_a0);
+	    //err = close(tf->tf_a0);
 	    break;
 	    
 	    case SYS_write:
-	    err = write(tf->tf_a0, tf->tf_a1, tf->tf_a2);
+	    //err = write(tf->tf_a0, tf->tf_a1, tf->tf_a2);
 	    break;
 	    
 	    case SYS_lseek:
-	    err = lseek(tf->tf_a0, tf->tf_a1, tf->tf_a2);
-	    //err = NULL;
+	    //err = lseek(tf->tf_a0, tf->tf_a1, tf->tf_a2);
+	    err = NULL;
 	    break;
 	    
 	    case SYS_chdir:
-	    err = vfs_chdir(tf->tf_a0);
-	    //err = NULL;
+	    //err = vfs_chdir(tf->tf_a0);
+	    err = NULL;
 	    break;
 	    
 	    case SYS_dup2:
-	    err = dup2(tf->tf_a0, tf->tf_a1);
-	    //err = NULL;
+	    //err = dup2(tf->tf_a0, tf->tf_a1);
+	    err = NULL;
 	    break;
 	    
 	    case SYS___getcwd:
-	    err = getcwd(tf->tf_a0);
-	    //err = NULL;
+	    //err = getcwd(tf->tf_a0);
+	    err = NULL;
 	    break;
 
 	    default:
@@ -198,4 +193,31 @@ void
 enter_forked_process(struct trapframe *tf)
 {
 	(void)tf;
+}
+
+///////////
+
+/* OUR IMPLEMENATATION*/
+
+///////////
+/*
+* pathname filename
+* flags how to open
+* mode is what mode opened in
+*/
+int
+sys_open(const char *filename, int flags, mode_t mode){
+             
+}
+
+/*
+fd must be >=0
+*/
+int
+close(int fd){
+    if (fd<0){
+        return EBADF;
+    }
+    
+    return 0;
 }
