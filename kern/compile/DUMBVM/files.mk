@@ -56,6 +56,7 @@ SRCS+=$(KTOP)/lib/uio.c
 SRCS+=$(KTOP)/main/main.c
 SRCS+=$(KTOP)/main/menu.c
 SRCS+=$(KTOP)/proc/proc.c
+SRCS+=$(KTOP)/syscall/file_table_syscall.c
 SRCS+=$(KTOP)/syscall/loadelf.c
 SRCS+=$(KTOP)/syscall/runprogram.c
 SRCS+=$(KTOP)/syscall/time_syscalls.c

@@ -1,11 +1,13 @@
-#include <file_table_syscall.h>
+#include <kern/file_table_syscall.h>
 #include <vfs.h>
 #include <copyinout.h>
 #include <limits.h>
 #include <vnode.h>
 #include <uio.h>
-
-// struct file_table file_table_arr[OPEN_MAX];
+#include <kern/errno.h>
+#include <current.h>
+#include <proc.h>
+#include <types.h>
 
 int
 sys_open(const char *filename, int flags, mode_t mode){
@@ -23,12 +25,12 @@ sys_open(const char *filename, int flags, mode_t mode){
     // error checking here 
     int res = 0;
     for (int i = 3 ; i < OPEN_MAX ; i++){
-        if(file_table_arr[i] == NULL){
-            file_table_arr[i] = kmalloc(sizeof(struct file_table));
-            file_table_arr[i].flags = flags;
-            file_table_arr[i].mode = mode;
-            file_table_arr[i].offset = 0;
-            res = vfs_open(tmp, flags, mode, &file_table_arr[i].vnode);
+        if(curproc.file_table_arr[i] == NULL){
+            curproc.file_table_arr[i] = kmalloc(sizeof(struct file_table));
+            curproc.file_table_arr[i].flags = flags;
+            curproc.file_table_arr[i].mode = mode;
+            curproc.file_table_arr[i].offset = 0;
+            res = vfs_open(tmp, flags, mode, &curproc.file_table_arr[i].vnode);
             if(res == EINVAL){
                 return EINVAL;
             }
@@ -47,15 +49,15 @@ sys_read(int fd, void *buf , size_t buflen){
     if(fd < 0 || fd > OPEN_MAX){
         return EBADF;
     }
-    if(file_table_arr[fd] != NULL && file_table_arr[fd].flag != O_RDONLY){
+    if(curproc.file_table_arr[fd] != NULL && curproc.file_table_arr[fd].flag != O_RDONLY){
         void *kbuf = kmalloc(sizeof(void*));
         struct uio myuio;
         struct iovec myiovec;
-        uio_kinit(&myiovec, &uio, kbuf, buflen, file_table_arr[fd].offset, UIO_READ);
+        uio_kinit(&myiovec, &myuio, kbuf, buflen, curproc.file_table_arr[fd].offset, UIO_READ);
         
         int residbefore = myuio.uio_resid;
-        int ret = VOP_READ(file_table_arr[fd].vnode, &myuio);
-        file_table_arr[fd].offset = myuio.uio_offset;
+        int ret = VOP_READ(curproc.file_table_arr[fd].vnode, &myuio);
+        curproc.file_table_arr[fd].offset = myuio.uio_offset;
         int ret2 = copyout(kbuf,(userptr_t) buf, buflen); //at this point we read the file from FD to the buffer in userspace
         if(ret2){
             return EFAULT;
@@ -69,27 +71,27 @@ sys_read(int fd, void *buf , size_t buflen){
 
 
 ssize_t
-sys_write(int fd, const void *buffer, size_t nbytes){
+sys_write(int fd, const void *buffer, size_t nbytes, (int32_t)*retval){
     if(fd < 0 || fd > OPEN_MAX){
             return EBADF;
         }
-        if(file_table_arr[fd] != NULL && file_table_arr[fd].flag != O_WRONLY){
+        if(curproc.file_table_arr[fd] != NULL && curproc.file_table_arr[fd].flag != O_WRONLY){
             void *kbuf = kmalloc(sizeof(void*));
             struct uio myuio;
             struct iovec myiovec;
             
             int ret = copyin((const_userptr_t) buffer, kbuf, nbytes);
             
-            uio_kinit(&myiovec, &uio, kbuf, nbytes, file_table_arr[fd].offset, UIO_WRITE);
+            uio_kinit(&myiovec, &myuio, kbuf, nbytes, curproc.file_table_arr[fd].offset, UIO_WRITE);
             
             int residbefore = myuio.uio_resid;
             
-            int ret2 = VOP_WRITE(file_table_arr[fd].vnode, &myuio);
+            int ret2 = VOP_WRITE(curproc.file_table_arr[fd].vnode, &myuio);
             if(ret2){
                 return ret2;
             }
-            file_table_arr[fd].offset = myuio.uio_offset;
-            
+            curproc.file_table_arr[fd].offset = myuio.uio_offset;
+            *retval = residbefore - myuio.uio_resid;
             return residbefore - myuio.uio_resid;
         }
         else{
@@ -106,25 +108,25 @@ sys_lseek(int fd, off_t pos, int whence){
     switch (whence)
     {
         case SEEK_SET:
-            file_table_arr[fd].offset = pos;
+            curproc.file_table_arr[fd].offset = pos;
             break;
         
         case SEEK_CUR:
-            file_table_arr[fd].offset += pos;
+            curproc.file_table_arr[fd].offset += pos;
             break;
         
         case SEEK_END:
             struct stat mystat;
-            int ret = VOP_STAT(file_table_arr[fd].vnode,&mystat);
+            int ret = VOP_STAT(curproc.file_table_arr[fd].vnode,&mystat);
             if(ret){
                 return ret;
             }
-            file_table_arr[fd].offset = pos + mystat.st_size;
+            curproc.file_table_arr[fd].offset = pos + mystat.st_size;
             break;
         default:
-            return EINVAL
+            return EINVAL;
     }
-    return file_table_arr[fd].offset;
+    return curproc.file_table_arr[fd].offset;
 };
 
 
@@ -133,12 +135,16 @@ sys_close(int fd){
     if(fd < 0 || fd > OPEN_MAX){
         return EBADF;
     }
-    if(file_table_arr[fd] != NULL){
+    if(curproc.file_table_arr[fd] != NULL){
         vfs_close(file_table_arr[fd]);
-        if(file_table_arr[fd].vnode.vn_refcount == 0){
-           vnode_cleanup(file_table_arr[fd].vnode);
-           kfree(file_table_arr[fd]);
+        if(curproc.file_table_arr[fd].vnode.vn_refcount == 0){
+           vnode_cleanup(curproc.file_table_arr[fd].vnode);
+           kfree(curproc.file_table_arr[fd]);
            return 0;
+        }
+        else{
+            // need to decrement
+            return 0;
         }
     }
     else{
@@ -148,17 +154,69 @@ sys_close(int fd){
 
 int
 sys_dup2(int oldfd, int newfd){
+    if(oldfd < 0 || newfd < 0 || oldfd == NULL || newfd == NULL){
+        return EBADF;
+    }
+    if(oldfd > OPEN_MAX || newfd > OPEN_MAX){
+       return EMFILE; 
+    }
+    if(oldfd == newfd){
+        return newfd;
+    }
     
+    if(curproc.file_table_arr[newfd] == NULL){
+        if(curproc.file_table_arr[oldfd] == NULL){
+            return newfd;
+        }
+        else{
+        // copy over vnode pointer and all the flags. both FDs now point to same pointer
+            curproc.file_table_arr[newfd].vnode = curproc.file_table_arr[oldfd].vnode;
+            curproc.file_table_arr[newfd].offset = curproc.file_table_arr[oldfd].offset;
+            curproc.file_table_arr[newfd].flag = curproc.file_table_arr[oldfd].flag;
+            return newfd;
+        }
+    }
+    else if(curproc.ile_table_arr[newfd] != NULL){
+        return sys_close(newfd);
+    }
+    
+    return EBADF;
 };
 
 
 int
 sys_chdir(const char *pathname){
+    char *tmp = kmalloc(sizeof(char*)); // hold result for copyinstr
+    size_t actual_size = 0; // hold result size
+        
+    int val = copyinstr((const_userptr_t)filename, tmp, NAME_MAX, &actual_size);
+    if(val == EFAULT){
+        return EFAULT;
+    }
+    if(val == ENAMETOOLONG){
+        return ENAMETOOLONG;
+    }
+    
+    return vfs_chdir(tmp);
 
 };
 
 
 int
 sys__getcwd(char *buf, size_t buflen){
-
+    void *kbuf = kmalloc(sizeof(void*));
+    struct uio myuio;
+    struct iovec myiovec;
+    size_t actual_size;
+    
+    uio_kinit(&myiovec, &myuio, kbuf, buflen, 0, UIO_READ);
+    int ret1 = vfs_getcwd(&myuio);
+    if(ret1 == ENOENT){
+        return ENOENT;
+    }
+    int ret2 = copyoutstr(kbuf, (userptr_t) buf, buflen, &actual_size);
+    if(ret2==EFAULT){
+        return EFAULT;
+    }
+    return actual_size;
 };

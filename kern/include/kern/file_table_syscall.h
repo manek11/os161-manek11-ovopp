@@ -1,13 +1,13 @@
 #ifndef _FILE_TABLE_SYSCALL_H_
 #define _FILE_TABLE_SYSCALL_H_
-
+#include <limits.h>
 struct file_table{
    struct  vnode *ft_vnode;
    mode_t flag;
    off_t offset;       
 };
 
-// struct file_table file_table_arr[];
+struct file_table file_table_arr[OPEN_MAX];
 
 int
 sys_open(const char *filename, int flags, mode_t mode);

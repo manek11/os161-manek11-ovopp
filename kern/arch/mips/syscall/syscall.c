@@ -37,6 +37,7 @@
 #include <syscall.h>
 #include <copyinout.h>
 #include <vfs.h>
+#include <kern/file_table_syscall.h>
 
 /*
  * System call dispatcher.
@@ -112,74 +113,35 @@ syscall(struct trapframe *tf)
 
 	    /* Add stuff here */
 	    case SYS_open:
-	    err = NULL;
+	    err = sys_open((const char *) tf->tf_a0, (int) tf->tf_a1, (mode_t) tf->tf_a2);
 	    break;
 	    
 	    case SYS_read:
-	    //err = read(tf->tf_a0, tf->tf_a1, tf->tf_a2);
-	    err = NULL;
+	    err = sys_read((int)tf->tf_a0, (void *) tf->tf_a1, (size_t) tf->tf_a2);
 	    break;
 	    
 	    case SYS_close:
-	    //err = close(tf->tf_a0);
+	    err = sys_close((int) tf->tf_a0);
 	    break;
 	    
 	    case SYS_write:
-	    //err = write(tf->tf_a0, tf->tf_a1, tf->tf_a2);
+	    err = sys_write((int) tf->tf_a0, (const void *) tf->tf_a1, (size_t) tf->tf_a2);
 	    break;
 	    
 	    case SYS_lseek:
-	    //err = lseek(tf->tf_a0, tf->tf_a1, tf->tf_a2);
-	    err = NULL;
+	    err = sys_lseek((int) tf->tf_a0, (off_t) tf->tf_a2, (int)tf->tf_a3);
 	    break;
 	    
 	    case SYS_chdir:
-	    //err = vfs_chdir(tf->tf_a0);
-	    err = NULL;
+	    err = sys_chdir((const char *)tf->tf_a0);
 	    break;
 	    
 	    case SYS_dup2:
-	    //err = dup2(tf->tf_a0, tf->tf_a1);
-	    err = NULL;
+	    err = sys_dup2((int)tf->tf_a0, (int)tf->tf_a1);
 	    break;
 	    
 	    case SYS___getcwd:
-	    //err = getcwd(tf->tf_a0);
-	    err = NULL;
-
-	    break;
-	    
-	    case SYS_read:
-	    err = sys_read((int) tf->tf_a0, (void*)tf->tf_a1, (size_t)tf->tf_a2, &retval);
-	    break;
-	    
-	    case SYS_close:
-	    err = 0;
-	    break;
-	    
-	    case SYS_write:
-	    err = sys_write((int)tf->tf_a0, (const void*)tf->tf_a1, (size_t)tf->tf_a2, &retval);
-	    break;
-	    
-	    case SYS_lseek:
-	    err = 0;
-	    //err = NULL;
-	    break;
-	    
-	    case SYS_chdir:
-	    err = 0;
-	    //err = NULL;
-	    break;
-	    
-	    case SYS_dup2:
-	    // err = dup2(tf->tf_a0, tf->tf_a1);
-	    err = 0;
-	    break;
-	    
-	    case SYS___getcwd:
-	    err = 0;
-	    //err = NULL;
-
+	    err = sys__getcwd((char *)tf->tf_a0, (size_t) tf->tf_a1);
 	    break;
 
 	    default:
@@ -231,43 +193,3 @@ enter_forked_process(struct trapframe *tf)
 	(void)tf;
 }
 
-
-///////////
-
-/* OUR IMPLEMENATATION*/
-
-///////////
-/*
-* pathname filename
-* flags how to open
-* mode is what mode opened in
-*/
-int
-sys_open(const char *filename, int flags, mode_t mode){
-             
-}
-
-/*
-fd must be >=0
-*/
-int
-close(int fd){
-    if (fd<0){
-        return EBADF;
-    }
-    
-
-int
-sys_read(int fd, void *buf, size_t buflen, int32_t*ret_val){
-             
-    *ret_val = copyin((const_userptr_t)fd, buf, buflen);
-    return 0;
-}
-
-int
-sys_write(int fd, const void *buf, size_t nbytes, int32_t*ret_val){
-
-    *ret_val = copyout(buf,(userptr_t)fd, nbytes);
-
-    return 0;
-}
