@@ -9,8 +9,9 @@ main.o: ../../main/main.c ../../include/types.h \
  ../../include/threadlist.h includelinks/machine/thread.h \
  ../../include/setjmp.h includelinks/kern/machine/setjmp.h \
  ../../include/proc.h ../../include/kern/file_table_syscall.h \
- ../../include/current.h includelinks/machine/current.h \
- ../../include/synch.h ../../include/vm.h includelinks/machine/vm.h \
- ../../include/mainbus.h ../../include/vfs.h ../../include/device.h \
- ../../include/syscall.h ../../include/test.h ../../include/version.h \
- autoconf.h
+ ../../include/vnode.h ../../include/kern/seek.h ../../include/uio.h \
+ ../../include/kern/iovec.h ../../include/current.h \
+ includelinks/machine/current.h ../../include/synch.h ../../include/vm.h \
+ includelinks/machine/vm.h ../../include/mainbus.h ../../include/vfs.h \
+ ../../include/device.h ../../include/syscall.h ../../include/test.h \
+ ../../include/version.h autoconf.h

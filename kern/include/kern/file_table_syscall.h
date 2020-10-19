@@ -1,22 +1,23 @@
 #ifndef _FILE_TABLE_SYSCALL_H_
 #define _FILE_TABLE_SYSCALL_H_
 
-/*
-#include <lib.h>
+
 #include <vnode.h>
-*/
-/*
 #include <kern/seek.h>
-*/
-struct file_table{
+#include <uio.h>
+#include <kern/types.h>
+#include <types.h>
+#include <lib.h>
+
+
+typedef struct file_table{
    struct  vnode *ft_vnode;
-   mode_t flag;
+   int flag;
+   mode_t mode;
    off_t offset;       
-};
+}file_table;
 
-struct file_table file_table_arr[128];
 
-/*
 int
 sys_open(const char *filename, int flags, mode_t mode);
 
@@ -41,8 +42,8 @@ sys_chdir(const char *pathname);
 int
 sys__getcwd(char *buf, size_t buflen);
 
-*/
 
+/*
 int
 sys_open(char *, int , mode_t);
 
@@ -62,10 +63,10 @@ int
 sys_dup2(int, int );
 
 int
-sys_chdir(char *);
+sys_chdir(const char *);
 
 int
 sys__getcwd(char *, size_t );
-
+*/
 
 #endif /* _FILE_TABLE_SYSCALL_H_ */

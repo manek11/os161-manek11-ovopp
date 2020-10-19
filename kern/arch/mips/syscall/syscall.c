@@ -38,6 +38,8 @@
 #include <copyinout.h>
 #include <vfs.h>
 #include <kern/file_table_syscall.h>
+#include <uio.h>
+#include <kern/iovec.h>
 
 /*
  * System call dispatcher.

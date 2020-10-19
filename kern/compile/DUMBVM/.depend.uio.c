@@ -6,5 +6,6 @@ uio.o: ../../lib/uio.c ../../include/types.h ../../include/kern/types.h \
  ../../include/thread.h ../../include/array.h ../../include/threadlist.h \
  includelinks/machine/thread.h ../../include/setjmp.h \
  includelinks/kern/machine/setjmp.h \
- ../../include/kern/file_table_syscall.h ../../include/current.h \
+ ../../include/kern/file_table_syscall.h ../../include/vnode.h \
+ ../../include/kern/seek.h ../../include/current.h \
  includelinks/machine/current.h ../../include/copyinout.h
