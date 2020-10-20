@@ -1,6 +1,11 @@
 #ifndef _FILE_TABLE_SYSCALL_H_
 #define _FILE_TABLE_SYSCALL_H_
+
+#include <lib.h>
+#include <vnode.h>
 #include <limits.h>
+#include <kern/seek.h>
+
 struct file_table{
    struct  vnode *ft_vnode;
    mode_t flag;
