@@ -8,6 +8,12 @@
 #include <current.h>
 #include <proc.h>
 #include <types.h>
+#include <lib.h>
+#include <limits.h>
+#include <vm.h>
+#include <kern/fcntl.h>
+#include <kern/stat.h>
+
 
 int
 sys_open(const char *filename, int flags, mode_t mode){

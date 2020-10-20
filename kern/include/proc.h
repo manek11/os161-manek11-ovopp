@@ -59,7 +59,7 @@ struct proc {
 	struct vnode *p_cwd;		/* current working directory */
 
 	/* add more material here as needed */
-	struct file_table file_table_arr[OPEN_MAX];
+	struct file_table file_table_arr[128];
 	
 };
 
