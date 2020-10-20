@@ -8,4 +8,6 @@ file_table_syscall.o: ../../syscall/file_table_syscall.c \
  ../../include/current.h includelinks/machine/current.h \
  ../../include/thread.h ../../include/threadlist.h \
  includelinks/machine/thread.h ../../include/setjmp.h \
- includelinks/kern/machine/setjmp.h ../../include/proc.h
+ includelinks/kern/machine/setjmp.h ../../include/proc.h \
+ ../../include/types.h ../../include/kern/types.h \
+ includelinks/kern/machine/types.h includelinks/machine/types.h
