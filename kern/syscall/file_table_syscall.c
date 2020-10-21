@@ -216,17 +216,6 @@ sys_close(int fd){
         curproc->file_table_arr[fd].offset = 0;
         curproc->file_table_arr[fd].mode = 0;
         return 0;
-        
-    /*    vfs_close(curproc->file_table_arr[fd].ft_vnode);
-        if(curproc->file_table_arr[fd].ft_vnode->vn_refcount == 0){
-           vnode_cleanup(curproc->file_table_arr[fd].ft_vnode);
-           kfree(curproc->file_table_arr[fd].ft_vnode);
-           curproc->file_table_arr[fd].ft_vnode = NULL;
-           return 0;
-        }
-        return 0;
-    }
-    */
     }
     else{
         return EBADF;
@@ -310,17 +299,4 @@ sys__getcwd(char *buf, size_t buflen, int32_t * retval){
     return 0;
 };
 
-// useful functions later when we want to implement assignment 5
-/*
-int
-file_table_init(struct proc newproc){
-    for(int i= 0 ; i < OPEN_MAX; i++){
-        newproc->file_table_arr[i].ft_vnode = NULL;
-        newproc->file_table_arr[i].offset = 0;
-        newproc->file_table_arr[i].flag = 0;
-        newproc->file_table_arr[i].mode = 0;
-    }
-    return 0;
-};
-*/
 

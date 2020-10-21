@@ -78,7 +78,7 @@ Q10. Why do you "probably want to change" the implementation of kill_curthread()
 
 A10. Not accounted for all possible code values from MIPS exception codes from line 91: ~os161/src/kern/arch/mips/include/trapframe.h
      All values can be accounted by matching from trapframe.h to kern/include/kern/signal.h 
-     Also, dont want to call panic.    
+     Additionally, we do not want to panic and crash the system without returning information on why it may error. 
                   
 
 Q11. What would be required to implement a system call that took more than 4 arguments?
