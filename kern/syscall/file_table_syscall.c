@@ -29,11 +29,9 @@ sys_open(const char *filename, int flags, mode_t mode, int32_t * retval){
         
     int val = copyinstr((const_userptr_t)filename, tmp, PATH_MAX, &actual_size);
     if(val == EFAULT){
-        kprintf("efault here");
         return EFAULT;
     }
     if(val == ENAMETOOLONG){
-        kprintf("enametoolong here");
         return ENAMETOOLONG;
     }
     // error checking here 
@@ -45,7 +43,6 @@ sys_open(const char *filename, int flags, mode_t mode, int32_t * retval){
             curproc->file_table_arr[i].offset = 0;
             res = vfs_open(tmp, flags, mode, &curproc->file_table_arr[i].ft_vnode);
             if(res == EINVAL){
-                kprintf("einval here");
                 return EINVAL;
             }
             else{
@@ -55,7 +52,6 @@ sys_open(const char *filename, int flags, mode_t mode, int32_t * retval){
         }
     }
     // error here, file TABLE is full
-    kprintf("errored here");
     return ENOSPC; 
 };
 
@@ -133,7 +129,6 @@ sys_write(int fd, const void *buffer, size_t nbytes, int32_t * retval){
             
             int ret2 = VOP_WRITE(curproc->file_table_arr[fd].ft_vnode, &myuio);
             if(ret2){
-                kprintf("110");
                 return ret2;
             }
             curproc->file_table_arr[fd].offset = myuio.uio_offset;
@@ -141,7 +136,6 @@ sys_write(int fd, const void *buffer, size_t nbytes, int32_t * retval){
             return 0;
         }
         else{
-            kprintf("117\n");
             return EBADF;
         }
 };
