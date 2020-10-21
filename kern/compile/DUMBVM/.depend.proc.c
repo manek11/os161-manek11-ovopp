@@ -10,4 +10,5 @@ proc.o: ../../proc/proc.c ../../include/types.h \
  ../../include/kern/seek.h ../../include/uio.h ../../include/kern/iovec.h \
  ../../include/current.h includelinks/machine/current.h \
  ../../include/addrspace.h ../../include/vm.h includelinks/machine/vm.h \
- opt-dumbvm.h
+ opt-dumbvm.h ../../include/limits.h ../../include/kern/limits.h \
+ ../../include/vfs.h ../../include/kern/fcntl.h

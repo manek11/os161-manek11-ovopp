@@ -85,6 +85,9 @@ syscall(struct trapframe *tf)
 	int callno;
 	int32_t retval;
 	int err;
+	int64_t bit_position;
+	int whence;
+	int64_t seekretval= -1;
 
 	KASSERT(curthread != NULL);
 	KASSERT(curthread->t_curspl == 0);
@@ -115,23 +118,27 @@ syscall(struct trapframe *tf)
 
 	    /* Add stuff here */
 	    case SYS_open:
-	    err = sys_open((const char *) tf->tf_a0, (int) tf->tf_a1, (mode_t) tf->tf_a2);
+	    err = sys_open((const char *) tf->tf_a0, (int) tf->tf_a1, (mode_t) tf->tf_a2, &retval);
 	    break;
 	    
 	    case SYS_read:
-	    err = sys_read((int)tf->tf_a0, (void *) tf->tf_a1, (size_t) tf->tf_a2);
+	    err = sys_read((int)tf->tf_a0, (void *) tf->tf_a1, (size_t) tf->tf_a2, &retval);
 	    break;
 	    
 	    case SYS_close:
 	    err = sys_close((int) tf->tf_a0);
 	    break;
 	    
-	    case SYS_write:
-	    err = sys_write((int) tf->tf_a0, (const void *) tf->tf_a1, (size_t) tf->tf_a2);
+	    case SYS_write:	    
+	    err = sys_write((int) tf->tf_a0, (const void *) tf->tf_a1, (size_t) tf->tf_a2, &retval);
 	    break;
 	    
 	    case SYS_lseek:
-	    err = sys_lseek((int) tf->tf_a0, (off_t) tf->tf_a2, (int)tf->tf_a3);
+	    bit_position = tf->tf_a2;
+	    bit_position <<=32;
+	    bit_position |= tf->tf_a3;
+	    copyin((userptr_t) (tf->tf_sp + 16), &whence, sizeof(whence));
+	    err = sys_lseek((int) tf->tf_a0, (off_t) bit_position, whence, &seekretval);
 	    break;
 	    
 	    case SYS_chdir:
@@ -139,11 +146,11 @@ syscall(struct trapframe *tf)
 	    break;
 	    
 	    case SYS_dup2:
-	    err = sys_dup2((int)tf->tf_a0, (int)tf->tf_a1);
+	    err = sys_dup2((int)tf->tf_a0, (int)tf->tf_a1, &retval);
 	    break;
 	    
 	    case SYS___getcwd:
-	    err = sys__getcwd((char *)tf->tf_a0, (size_t) tf->tf_a1);
+	    err = sys__getcwd((char *)tf->tf_a0, (size_t) tf->tf_a1, &retval);
 	    break;
 
 	    default:
@@ -164,6 +171,10 @@ syscall(struct trapframe *tf)
 	}
 	else {
 		/* Success. */
+		if(seekretval >= 0){
+		    retval = (int32_t)(seekretval >> 32);
+		    tf->tf_v1 = (int32_t)seekretval;
+		}
 		tf->tf_v0 = retval;
 		tf->tf_a3 = 0;      /* signal no error */
 	}

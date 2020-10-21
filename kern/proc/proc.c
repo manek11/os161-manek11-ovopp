@@ -48,7 +48,9 @@
 #include <current.h>
 #include <addrspace.h>
 #include <vnode.h>
-
+#include <limits.h>
+#include <vfs.h>
+#include <kern/fcntl.h>
 /*
  * The process for the kernel; this holds all the kernel-only threads.
  */
@@ -72,7 +74,11 @@ proc_create(const char *name)
 		kfree(proc);
 		return NULL;
 	}
-
+	
+    for(int i= 0 ; i < OPEN_MAX; i++){
+        proc->file_table_arr[i].ft_vnode = NULL;
+    }
+    
 	threadarray_init(&proc->p_threads);
 	spinlock_init(&proc->p_lock);
 
@@ -110,13 +116,17 @@ proc_destroy(struct proc *proc)
 	 * reference to this structure. (Otherwise it would be
 	 * incorrect to destroy it.)
 	 */
-
+    
 	/* VFS fields */
 	if (proc->p_cwd) {
 		VOP_DECREF(proc->p_cwd);
 		proc->p_cwd = NULL;
 	}
-
+    //for(int i = 0; i < OPEN_MAX; i++){
+        //vnode_cleanup(proc->file_table_arr[i].ft_vnode);
+        //kfree(proc->file_table_arr[i].ft_vnode); 
+        //proc->file_table_arr[i].ft_vnode = NULL;   
+    //}
 	/* VM fields */
 	if (proc->p_addrspace) {
 		/*
@@ -205,7 +215,45 @@ proc_create_runprogram(const char *name)
 	newproc->p_addrspace = NULL;
 
 	/* VFS fields */
+	// updates the file table for the console, the process will return null
+	const char* con = "con:";
+    struct vnode* vn1;
+    int ret = 0;
+    vfs_open(kstrdup(con),O_RDONLY, 0664, &vn1);
 
+    if(ret){
+        return NULL;
+    }
+
+    newproc->file_table_arr[0].ft_vnode = vn1;
+    newproc->file_table_arr[0].offset = 0;
+    newproc->file_table_arr[0].flag = O_RDONLY;
+    newproc->file_table_arr[0].mode = 0;
+
+    struct vnode* vn2;
+    vfs_open(kstrdup(con),O_WRONLY, 0664, &vn2);
+
+    if(ret){
+        return NULL;
+    }
+
+    newproc->file_table_arr[1].ft_vnode = vn2;
+    newproc->file_table_arr[1].offset = 0;
+    newproc->file_table_arr[1].flag = O_WRONLY;
+    newproc->file_table_arr[1].mode = 0;
+
+    struct vnode* vn3;
+    vfs_open(kstrdup(con),O_WRONLY, 0664, &vn3);		   
+
+    if(ret){
+        return NULL;
+    }
+
+    newproc->file_table_arr[2].ft_vnode = vn3;
+    newproc->file_table_arr[2].offset = 0;
+    newproc->file_table_arr[2].flag = O_WRONLY;
+    newproc->file_table_arr[2].mode = 0;
+    
 	/*
 	 * Lock the current process to copy its current directory.
 	 * (We don't need to lock the new process, though, as we have
