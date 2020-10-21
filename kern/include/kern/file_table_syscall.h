@@ -9,7 +9,7 @@
 #include <types.h>
 #include <lib.h>
 
-
+// file_table object used in file_table_arr[OPEN_MAX]
 typedef struct file_table{
    struct  vnode *ft_vnode;
    int flag;
@@ -17,7 +17,7 @@ typedef struct file_table{
    off_t offset;       
 }file_table;
 
-
+// function decorators for syscall functions
 int
 sys_open(const char *filename, int flags, mode_t mode, int32_t *retval);
 

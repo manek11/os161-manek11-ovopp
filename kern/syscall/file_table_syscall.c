@@ -16,12 +16,19 @@
 #include <kern/fcntl.h>
 #include <kern/stat.h>
 
+/**
+* functions that are called by syscall.c 's transfer points.
+* sys_* based on the operation by the user.
+*/
 
+/* 
+* sys_open returns the first available FD of the file-table 
+*/
 int
 sys_open(const char *filename, int flags, mode_t mode, int32_t * retval){
-
-    char *tmp = kmalloc(sizeof(char)*NAME_MAX); // hold result for copyinstr
-    size_t actual_size = 0; // hold result size
+    // setup parameters for copyinstr
+    char *tmp = kmalloc(sizeof(char)*NAME_MAX); // holds result for copyinstr
+    size_t actual_size = 0; // holds result size
     
     if (filename == NULL){
         return EFAULT;
@@ -34,7 +41,8 @@ sys_open(const char *filename, int flags, mode_t mode, int32_t * retval){
     if(val == ENAMETOOLONG){
         return ENAMETOOLONG;
     }
-    // error checking here 
+    
+    // finds the next available file-table with an empty entry and fill it up
     int res = 0;
     for (int i = 3 ; i < OPEN_MAX ; i++){
         if(curproc->file_table_arr[i].ft_vnode == NULL){
@@ -55,11 +63,12 @@ sys_open(const char *filename, int flags, mode_t mode, int32_t * retval){
     return ENOSPC; 
 };
 
-
+/* 
+* sys_read returns 0 and updates retval upon a successful read with the number of bytes read
+*/
 ssize_t
 sys_read(int fd, void *buf , size_t buflen, int32_t * retval){
-   
-
+     // error checking for invalid FDs   
      if(fd < 0 || fd >= OPEN_MAX){
         return EBADF;
      }
@@ -67,7 +76,7 @@ sys_read(int fd, void *buf , size_t buflen, int32_t * retval){
      if (curproc->file_table_arr[fd].flag & O_WRONLY){
             return EBADF;
         }
-
+    // using UIO and IOVEC to read the vnode associated with the FD entry.
     if(curproc->file_table_arr[fd].ft_vnode != NULL && curproc->file_table_arr[fd].flag != O_WRONLY){
         void *kbuf = kmalloc(sizeof(void*));
         struct uio myuio;
@@ -94,6 +103,7 @@ sys_read(int fd, void *buf , size_t buflen, int32_t * retval){
 
 ssize_t
 sys_write(int fd, const void *buffer, size_t nbytes, int32_t * retval){
+    // error checking for invalid parameters  
     if(fd < 0 || fd >= OPEN_MAX){
             return EBADF;
         }
@@ -113,7 +123,8 @@ sys_write(int fd, const void *buffer, size_t nbytes, int32_t * retval){
         if (!(curproc->file_table_arr[fd].flag & O_ACCMODE)){
             return EBADF;
         }
-
+        
+        // Using UIO and IOVEC to facilitate writing to userspace
         if(curproc->file_table_arr[fd].ft_vnode != NULL && curproc->file_table_arr[fd].flag != O_RDONLY){
             void *kbuf = kmalloc(sizeof(void*));
             struct uio myuio;
@@ -143,6 +154,7 @@ sys_write(int fd, const void *buffer, size_t nbytes, int32_t * retval){
 
 off_t
 sys_lseek(int fd, off_t pos, int whence, int64_t * retval){
+    // error checking for invalid parameters  
     if(fd < 0 || fd >= OPEN_MAX){
         return EBADF;
     }
@@ -154,7 +166,7 @@ sys_lseek(int fd, off_t pos, int whence, int64_t * retval){
     int ret = 0;
     struct stat mystat;
     off_t seek = curproc->file_table_arr[fd].offset;
-    
+    // switch case to handle the appropriate whence cases
     switch (whence)
     {
         case SEEK_SET:
@@ -193,15 +205,18 @@ sys_lseek(int fd, off_t pos, int whence, int64_t * retval){
 
 int
 sys_close(int fd){
+    // Checks for bad parameters
     if(fd < 0 || fd >= OPEN_MAX){
         return EBADF;
     }
+    // Resets the entry in our filetable
     if(curproc->file_table_arr[fd].ft_vnode != NULL){
         curproc->file_table_arr[fd].ft_vnode = NULL;
         curproc->file_table_arr[fd].flag = -1;
         curproc->file_table_arr[fd].offset = 0;
         curproc->file_table_arr[fd].mode = 0;
         return 0;
+        
     /*    vfs_close(curproc->file_table_arr[fd].ft_vnode);
         if(curproc->file_table_arr[fd].ft_vnode->vn_refcount == 0){
            vnode_cleanup(curproc->file_table_arr[fd].ft_vnode);
@@ -220,6 +235,7 @@ sys_close(int fd){
 
 int
 sys_dup2(int oldfd, int newfd, int32_t * retval){
+    // Error checks for bad parameters
     if(oldfd < 0 || oldfd >= OPEN_MAX){
         return EBADF;
     }
@@ -275,6 +291,7 @@ sys_chdir(const char *pathname){
 
 int
 sys__getcwd(char *buf, size_t buflen, int32_t * retval){
+    // The name of the current directory is computed and stored in buf, an area of size buflen
     void *kbuf = kmalloc(sizeof(void*));
     struct uio myuio;
     struct iovec myiovec;
@@ -293,6 +310,7 @@ sys__getcwd(char *buf, size_t buflen, int32_t * retval){
     return 0;
 };
 
+// useful functions later when we want to implement assignment 5
 /*
 int
 file_table_init(struct proc newproc){
