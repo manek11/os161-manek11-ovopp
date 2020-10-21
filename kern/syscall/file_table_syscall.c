@@ -22,6 +22,10 @@ sys_open(const char *filename, int flags, mode_t mode, int32_t * retval){
 
     char *tmp = kmalloc(sizeof(char)*NAME_MAX); // hold result for copyinstr
     size_t actual_size = 0; // hold result size
+    
+    if (filename == NULL){
+        return EFAULT;
+    }
         
     int val = copyinstr((const_userptr_t)filename, tmp, PATH_MAX, &actual_size);
     if(val == EFAULT){
@@ -58,9 +62,59 @@ sys_open(const char *filename, int flags, mode_t mode, int32_t * retval){
 
 ssize_t
 sys_read(int fd, void *buf , size_t buflen, int32_t * retval){
-    if(fd < 0 || fd > OPEN_MAX){
+   
+   
+   /* if(fd < 0 || fd >= OPEN_MAX){
         return EBADF;
+        }
+    
+    if (buf == NULL){
+        return EFAULT;
+    } 
+    
+    if (curproc->file_table_arr[fd].ft_vnode == NULL){
+        return EBADF;
+    }    
+    
+    if (buflen <= 0){
+        return EFAULT;
     }
+    
+     if (!(curproc->file_table_arr[fd].flag & O_ACCMODE)){
+            return EBADF;
+        }
+        
+    //}
+    if(curproc->file_table_arr[fd].ft_vnode != NULL && curproc->file_table_arr[fd].flag != O_WRONLY){
+        void *kbuf = kmalloc(sizeof(void*));
+        struct uio myuio;
+        struct iovec myiovec;
+        uio_kinit(&myiovec, &myuio, kbuf, buflen, curproc->file_table_arr[fd].offset, UIO_READ);
+        
+        int residbefore = myuio.uio_resid;
+        int ret = VOP_READ(curproc->file_table_arr[fd].ft_vnode, &myuio);
+        if(ret)
+            return ret;
+        curproc->file_table_arr[fd].offset = myuio.uio_offset;
+        int ret2 = copyout(kbuf,(userptr_t) buf, buflen); //at this point we read the file from FD to the buffer in userspace
+        if(ret2){
+            return EFAULT;
+        }
+        *retval = residbefore - myuio.uio_resid;
+        return 0; // return the number of bytes 
+    }
+    else{
+        return EBADF;
+    }*/
+    
+     if(fd < 0 || fd >= OPEN_MAX){
+        return EBADF;
+     }
+     
+     if (curproc->file_table_arr[fd].flag & O_WRONLY){
+            return EBADF;
+        }
+
     if(curproc->file_table_arr[fd].ft_vnode != NULL && curproc->file_table_arr[fd].flag != O_WRONLY){
         void *kbuf = kmalloc(sizeof(void*));
         struct uio myuio;
@@ -87,7 +141,23 @@ sys_read(int fd, void *buf , size_t buflen, int32_t * retval){
 
 ssize_t
 sys_write(int fd, const void *buffer, size_t nbytes, int32_t * retval){
-    if(fd < 0 || fd > OPEN_MAX){
+    if(fd < 0 || fd >= OPEN_MAX){
+            return EBADF;
+        }
+        
+        if (buffer == NULL){
+            return EFAULT;
+        } 
+
+        if (curproc->file_table_arr[fd].ft_vnode == NULL){
+            return EBADF;
+        }    
+
+        if (nbytes <= 0){
+            return EFAULT;
+        }
+        
+        if (!(curproc->file_table_arr[fd].flag & O_ACCMODE)){
             return EBADF;
         }
 
