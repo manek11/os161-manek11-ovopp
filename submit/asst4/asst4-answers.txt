@@ -116,20 +116,21 @@ Q15: As you were reading the code in runprogram.c and loadelf.c, you probably no
 A15. open file:     vfs_open()
      read file:     VOP_READ()
      write file:    VOP_WRITE()
-     data structure representing open file: array?
+     The kernel can use a file object to represent the open file.
+     The file object would contain the vnode, flag, offset, and mode.
+     These files would then be in a file-table (file array)
      
 Q16: What is the purpose of VOP_INCREF and VOP_DECREF?
 
-A16. VOP_INCREF: Increment refcount. 
-     VOP_DECREF: Decrement refcount. Calls VOP_RECLAIM if the refcount hits zero.                  
+A16. VOP_INCREF: Increment refcount of vnode. 
+     VOP_DECREF: Decrement refcount of vnode. Calls VOP_RECLAIM if the refcount hits zero.                  
         
+
+///////////////////////////////////
      
 Discussion for implementations:
 
 remember to account for the return errors for methods used to implement.
--- for write, read, lseek --
-userland/bin/tac/tac.c
-
 
 open():
 arguments: flags (7 flags: O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, O_EXCL, O_TRUNC, O_APPEND) and file name
