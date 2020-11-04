@@ -50,11 +50,13 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <filetable.h>
+#include <pid.h>
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
  */
 struct proc *kproc;
+
 
 /*
  * Create a proc structure.
@@ -84,7 +86,7 @@ proc_create(const char *name)
 	/* VFS fields */
 	proc->p_cwd = NULL;
 	proc->p_filetable = NULL;
-
+    proc.pid = get_available()
 	return proc;
 }
 
