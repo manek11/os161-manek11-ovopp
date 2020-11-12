@@ -355,15 +355,26 @@ sys_execv(const char * program, char **args){
     //total arguments = args_size
     //length of each argument is in len[]    
     //kern_args is args in kernel mode
-    userptr_t args_addr = (userptr_t)(stackptr - sizeof(char *) * args_size - sizeof(NULL));
-    userptr_t kargs_out_addr = (userptr_t)(args_addr - sizeof(char *) * args_size - sizeof(NULL));
+    
+    int total_size = 0;
+    for(int i = 0; i < args_size; i++){
+        total_size += len[i] + (4 - (len[i]%4));
+    }
 
-    for (int i=0; i<args_size; i++){
-
+    userptr_t kargs_out_array [args_size+1];
+    
+    userptr_t args_addr = (userptr_t)(stackptr - sizeof(char *)*total_size - sizeof(NULL));
+    userptr_t kargs_out_addr = (userptr_t)(stackptr - sizeof(char *)*total_size - sizeof(char *)*args_size - sizeof(NULL));
+    // kprintf("arg pointer: %d\n", (int)args_addr);
+    // kprintf("kargs pointer: %d\n", (int) kargs_out_addr);
+    
+    for(int i = (args_size -1); i >= 0; i--){
         size_t actual = 0;
-        args_addr += (len[i] + (4 - (len[i]%4)));
+        args_addr -= (len[i] + (4 - (len[i]%4)));
+        kprintf("arg pointer: %d\n", (int)args_addr);
         KASSERT((int)args_addr %4 == 0);
         int error = copyoutstr((const char *)kern_args[i], (userptr_t)args_addr, (size_t) len[i] + (4 - (len[i]%4)), &actual);
+        // kprintf("actual size copied out %d\n",actual);
         if(error){
             kfree(len);
             len = NULL;
@@ -372,18 +383,21 @@ sys_execv(const char * program, char **args){
             kfree(prog);
             prog = NULL; 
             return error;
-            }        
+        }
+        kargs_out_array[i] = args_addr;       
     }
+    //set last as NULL
+    kargs_out_array[args_size] = NULL;
+    copyout((const char *)kargs_out_array, (userptr_t)kargs_out_addr, (size_t) sizeof(char*)*(args_size + 1));
         
-    stackptr = (vaddr_t)args_addr; 
+    stackptr = (vaddr_t)kargs_out_addr; 
     
-    kfree(prog);
-    prog = NULL;
-    for (int i=0; i<args_size; i++){
-        kfree(kern_args[i]);
-        kern_args[i] = NULL;           
-    }
- 
+        kfree(prog);
+        prog = NULL;
+        for (int i=0; i<args_size; i++){
+            kfree(kern_args[i]);
+            kern_args[i] = NULL;           
+        }
     
     /*Step 7 Celan up old as*/
     as_destroy(old_as);
