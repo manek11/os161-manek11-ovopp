@@ -206,6 +206,10 @@ sys_execv(const char * program, char **args){
     if (program == NULL || args == NULL){
         return EFAULT;
     }
+
+    if((int *)args == (int *)0x40000000 || (int *)args == (int *)0x80000000){
+        return EFAULT;
+    }
     
     /*Step1: Copy arguments from the old address space*/
      
@@ -235,12 +239,13 @@ sys_execv(const char * program, char **args){
     int args_size = 0;
     
     for (int i=0; i<ARG_MAX; i++){
-        if((int)&args[i] == (int) 0x40000000){
+             
+        if((int *)args[i] == (int *)0x40000000 || (int *)args[i] == (int *)0x80000000){
             kfree(prog);
-        prog = NULL;
-        return EFAULT;
-        }
-
+            prog = NULL;
+            return EFAULT;
+        }        
+            
         if(args[i]==NULL){
             break;
         }
