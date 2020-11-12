@@ -13,6 +13,6 @@ proc_syscalls.o: ../../syscall/proc_syscalls.c ../../include/types.h \
  ../../include/copyinout.h ../../include/vfs.h ../../include/vnode.h \
  ../../include/openfile.h ../../include/filetable.h \
  ../../include/limits.h ../../include/kern/syscall.h \
- ../../include/kern/wait.h ../../include/syscall.h \
- ../../include/addrspace.h ../../include/vm.h includelinks/machine/vm.h \
- opt-dumbvm.h ../../include/spl.h ../../include/pid.h
+ ../../include/kern/wait.h ../../include/addrspace.h ../../include/vm.h \
+ includelinks/machine/vm.h opt-dumbvm.h ../../include/spl.h \
+ ../../include/pid.h ../../include/syscall.h

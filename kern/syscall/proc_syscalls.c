@@ -20,6 +20,7 @@
 #include <addrspace.h>
 #include <spl.h>
 #include <pid.h>
+#include <vm.h>
 #include <syscall.h>
 
 void
@@ -115,7 +116,7 @@ sys__exit(int code){
     struct proc* tmp_proc;
     lock_acquire(curproc->childarray_lock);
     
-    if(code == 0){
+    if(code == 0 || code == 107){
         curproc->ret_val = _MKWAIT_EXIT(code);
     }
     else{
@@ -206,7 +207,6 @@ sys_execv(const char * program, char **args){
         return EFAULT;
     }
     
-
     /*Step1: Copy arguments from the old address space*/
      
     //copy program path name from user to kernel space
@@ -218,17 +218,29 @@ sys_execv(const char * program, char **args){
     
     int ret = copyin((const_userptr_t) program, prog, PATH_MAX);
     
+    if(strlen(prog) == 0){
+        kfree(prog);
+        prog = NULL;
+        return EINVAL;
+    }
+    
     if (ret){
         kfree(prog);
         prog = NULL;
         return ret;
     }
-     
+ 
     //copy args from user to kernel space
     //By default args[0] is programname
     int args_size = 0;
     
     for (int i=0; i<ARG_MAX; i++){
+        if((int)&args[i] == (int) 0x40000000){
+            kfree(prog);
+        prog = NULL;
+        return EFAULT;
+        }
+
         if(args[i]==NULL){
             break;
         }
@@ -249,10 +261,12 @@ sys_execv(const char * program, char **args){
      int *len = kmalloc(sizeof(int)*args_size);
      
      for (int i=0; i<args_size; i++){
-         char *string = kmalloc(sizeof(char)*NAME_MAX);
+         char *string = kmalloc(sizeof(char)*(strlen(args[i]) + 1));
          size_t length = 0;
          int err = 0;
-         err = copyinstr((const_userptr_t) args[i], string, NAME_MAX, &length);
+        
+         err = copyinstr((const_userptr_t) args[i], string, (strlen(args[i]) + 1), &length);
+         
          if(err){  
              kfree(string);
              string = NULL;
@@ -264,11 +278,13 @@ sys_execv(const char * program, char **args){
              prog = NULL;
              return err;
          }
+
          len[i] = length;
          char ch = '\0';
          for(unsigned int j = length; j < (length + (4 - (length % 4))); j++){
             string[j] = ch;
          }
+
          kern_args[i] = string;
      } 
      
@@ -356,25 +372,16 @@ sys_execv(const char * program, char **args){
     //length of each argument is in len[]    
     //kern_args is args in kernel mode
     
-    int total_size = 0;
+    userptr_t args_addr = (userptr_t)(stackptr - sizeof(userptr_t *)*args_size - sizeof(NULL));
+    userptr_t *args_out = (userptr_t *)(stackptr - sizeof(char *)*args_size - sizeof(NULL));
+    userptr_t kargs_out_addr;
+    
     for(int i = 0; i < args_size; i++){
-        total_size += len[i] + (4 - (len[i]%4));
-    }
-
-    userptr_t kargs_out_array [args_size+1];
-    
-    userptr_t args_addr = (userptr_t)(stackptr - sizeof(char *)*total_size - sizeof(NULL));
-    userptr_t kargs_out_addr = (userptr_t)(stackptr - sizeof(char *)*total_size - sizeof(char *)*args_size - sizeof(NULL));
-    // kprintf("arg pointer: %d\n", (int)args_addr);
-    // kprintf("kargs pointer: %d\n", (int) kargs_out_addr);
-    
-    for(int i = (args_size -1); i >= 0; i--){
         size_t actual = 0;
-        args_addr -= (len[i] + (4 - (len[i]%4)));
-        kprintf("arg pointer: %d\n", (int)args_addr);
+        args_addr -= (len[i]+(4 - (len[i]%4)));
+        *args_out = args_addr;
         KASSERT((int)args_addr %4 == 0);
         int error = copyoutstr((const char *)kern_args[i], (userptr_t)args_addr, (size_t) len[i] + (4 - (len[i]%4)), &actual);
-        // kprintf("actual size copied out %d\n",actual);
         if(error){
             kfree(len);
             len = NULL;
@@ -384,13 +391,13 @@ sys_execv(const char * program, char **args){
             prog = NULL; 
             return error;
         }
-        kargs_out_array[i] = args_addr;       
+        args_out++;  
     }
     //set last as NULL
-    kargs_out_array[args_size] = NULL;
-    copyout((const char *)kargs_out_array, (userptr_t)kargs_out_addr, (size_t) sizeof(char*)*(args_size + 1));
-        
-    stackptr = (vaddr_t)kargs_out_addr; 
+    *args_out = NULL;
+    kargs_out_addr = (userptr_t) (stackptr - args_size*(sizeof(int)) - sizeof(NULL));
+    args_addr -= (int) args_addr % sizeof(void*);  
+    stackptr = (vaddr_t)args_addr; 
     
         kfree(prog);
         prog = NULL;
@@ -399,7 +406,7 @@ sys_execv(const char * program, char **args){
             kern_args[i] = NULL;           
         }
     
-    /*Step 7 Celan up old as*/
+    /*Step 7 Can up old as*/
     as_destroy(old_as);
     
     /*Step 8 Warp to user mode. */
