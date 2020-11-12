@@ -208,15 +208,17 @@ sys_execv(const char * program, char **args){
     }
 
     if((int *)args == (int *)0x40000000 || (int *)args == (int *)0x80000000){
+        kprintf("here: 211 \n");
         return EFAULT;
     }
-    
+
     /*Step1: Copy arguments from the old address space*/
      
     //copy program path name from user to kernel space
     char *prog = kmalloc(sizeof(char)*(PATH_MAX)); 
     
     if (prog == NULL){
+        kprintf("here: 221 \n");
         return ENOMEM;
     }
     
@@ -224,6 +226,7 @@ sys_execv(const char * program, char **args){
     
     if(strlen(prog) == 0){
         kfree(prog);
+        kprintf("here: 229 \n");        
         prog = NULL;
         return EINVAL;
     }
@@ -239,13 +242,14 @@ sys_execv(const char * program, char **args){
     int args_size = 0;
     
     for (int i=0; i<ARG_MAX; i++){
-             
+          
         if((int *)args[i] == (int *)0x40000000 || (int *)args[i] == (int *)0x80000000){
             kfree(prog);
             prog = NULL;
+            kprintf("here: 249 \n"); 
             return EFAULT;
         }        
-            
+ 
         if(args[i]==NULL){
             break;
         }
@@ -258,6 +262,7 @@ sys_execv(const char * program, char **args){
         // have to free the prog before exiting
         kfree(prog);
         prog = NULL;
+        kprintf("here: 265 \n");        
         return E2BIG;
     }
     
@@ -273,6 +278,7 @@ sys_execv(const char * program, char **args){
          err = copyinstr((const_userptr_t) args[i], string, (strlen(args[i]) + 1), &length);
          
          if(err){  
+             kprintf("here: 281 \n");
              kfree(string);
              string = NULL;
              kfree(len);
@@ -283,10 +289,16 @@ sys_execv(const char * program, char **args){
              prog = NULL;
              return err;
          }
-
+            /*
          len[i] = length;
          char ch = '\0';
          for(unsigned int j = length; j < (length + (4 - (length % 4))); j++){
+            string[j] = ch;
+         }
+*/
+         len[i] = strlen(string);
+         char ch = '\0';
+         for(int j = len[i]; j < (len[i] + (4 - (len[i] % 4))); j++){
             string[j] = ch;
          }
 
