@@ -43,9 +43,6 @@
 struct addrspace;
 struct vnode;
 
-/*
- * Process structure.
- */
 struct proc {
 	char *p_name;			/* Name of this process */
 	struct spinlock p_lock;		/* Lock for this structure */
@@ -59,27 +56,22 @@ struct proc {
 	struct filetable *p_filetable;	/* table of open files */
 
 	/* add more material here as needed */
+	//struct lock *ft_lock;
+	
 	pid_t pid;
-	struct list* list_of_child;
-	struct lock* list_of_child_lock;
+	bool dead;
+	int ret_val;
+	struct proc* parent_proc;
+	struct semaphore* sem_child;
+	struct lock* childarray_lock;
+	struct array* childarray;
+	
 	 
 };
 
 
 /* This is the process structure for the kernel and for kernel-only threads. */
 extern struct proc *kproc;
-/* pid table holding values for available pid values*/
-extern struct pidtable *pidtable;
-
-void pid_bootstrap(void);
-void pid_destroy(struct *pidtable);
-pid_t pid_get(struct *pidtable); /* occupies the index free, returns the pid index*/ 
-
-pid_t pid_remove(struct *pidtable, int pid);
-
-int pid_exist();
-
-
 
 /* Call once during system startup to allocate data structures. */
 void proc_bootstrap(void);
@@ -105,5 +97,6 @@ struct addrspace *proc_getas(void);
 /* Change the address space of the current process, and return the old one. */
 struct addrspace *proc_setas(struct addrspace *);
 
+struct proc* find_child_by_pid(struct array* array, pid_t pid);
 
 #endif /* _PROC_H_ */

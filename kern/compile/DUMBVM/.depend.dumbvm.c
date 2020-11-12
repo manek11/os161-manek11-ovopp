@@ -4,9 +4,9 @@ dumbvm.o: ../../arch/mips/vm/dumbvm.c ../../include/types.h \
  ../../include/lib.h ../../include/cdefs.h opt-noasserts.h \
  ../../include/spl.h ../../include/spinlock.h \
  includelinks/machine/spinlock.h ../../include/proc.h \
- ../../include/thread.h ../../include/array.h ../../include/threadlist.h \
- includelinks/machine/thread.h ../../include/setjmp.h \
- includelinks/kern/machine/setjmp.h ../../include/current.h \
- includelinks/machine/current.h includelinks/mips/tlb.h \
- ../../include/addrspace.h ../../include/vm.h includelinks/machine/vm.h \
- opt-dumbvm.h
+ ../../include/kern/limits.h ../../include/thread.h ../../include/array.h \
+ ../../include/threadlist.h includelinks/machine/thread.h \
+ ../../include/setjmp.h includelinks/kern/machine/setjmp.h \
+ ../../include/current.h includelinks/machine/current.h \
+ includelinks/mips/tlb.h ../../include/addrspace.h ../../include/vm.h \
+ includelinks/machine/vm.h opt-dumbvm.h

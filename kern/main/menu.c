@@ -41,6 +41,7 @@
 #include <sfs.h>
 #include <syscall.h>
 #include <test.h>
+#include <synch.h>
 
 
 #include "opt-synchprobs.h"
@@ -147,7 +148,8 @@ common_prog(int nargs, char **args)
 	 * The new process will be destroyed when the program exits...
 	 * once you write the code for handling that.
 	 */
-
+    
+    P(proc->sem_child);
 	return 0;
 }
 

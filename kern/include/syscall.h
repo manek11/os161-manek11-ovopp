@@ -68,9 +68,16 @@ int sys_close(int fd);
 int sys_read(int fd, userptr_t buf, size_t size, int *retval);
 int sys_write(int fd, userptr_t buf, size_t size, int *retval);
 int sys_lseek(int fd, off_t offset, int code, off_t *retval);
-
 int sys_chdir(const_userptr_t path);
 int sys___getcwd(userptr_t buf, size_t buflen, int *retval);
-int sys_fork();
+pid_t sys_fork(struct trapframe *parent_tf, int32_t *retval);
+void child_thread (void *data1, unsigned long data2);
+pid_t  sys_getpid(int32_t *ret);
+void sys__exit( int code );
+int sys_waitpid(pid_t pid, int32_t* status, int options, int32_t* retval);
+
+
+int sys_execv(const char * program, char **args);
+
 
 #endif /* _SYSCALL_H_ */

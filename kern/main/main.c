@@ -39,6 +39,7 @@
 #include <spl.h>
 #include <clock.h>
 #include <thread.h>
+#include <pid.h>
 #include <proc.h>
 #include <current.h>
 #include <synch.h>
@@ -108,6 +109,7 @@ boot(void)
 
 	/* Early initialization. */
 	ram_bootstrap();
+	pid_bootstrap();
 	proc_bootstrap();
 	thread_bootstrap();
 	hardclock_bootstrap();

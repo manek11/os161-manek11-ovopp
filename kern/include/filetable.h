@@ -57,6 +57,7 @@
  */
 struct filetable {
 	struct openfile *ft_openfiles[OPEN_MAX];
+	struct lock *ft_lock;
 };
 
 /*

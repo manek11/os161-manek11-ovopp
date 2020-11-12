@@ -34,6 +34,7 @@
 #include <types.h>
 #include <kern/errno.h>
 #include <lib.h>
+#include <synch.h>
 #include <openfile.h>
 #include <filetable.h>
 
@@ -51,6 +52,12 @@ filetable_create(void)
 	if (ft == NULL) {
 		return NULL;
 	}
+	
+	ft->ft_lock = lock_create("ft_lock");    
+    if(ft->ft_lock == NULL){
+        kfree(ft);
+        return NULL;
+    }
 
 	/* the table starts empty */
 	for (fd = 0; fd < OPEN_MAX; fd++) {
@@ -76,7 +83,13 @@ filetable_destroy(struct filetable *ft)
 			openfile_decref(ft->ft_openfiles[fd]);
 			ft->ft_openfiles[fd] = NULL;
 		}
-	}
+    }
+    
+	if (lock_do_i_hold(ft->ft_lock)){    	
+        lock_release(ft->ft_lock);	
+    } 
+	
+   	lock_destroy(ft->ft_lock);
 	kfree(ft);
 }
 

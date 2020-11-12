@@ -185,14 +185,35 @@ syscall(struct trapframe *tf)
 	    case SYS_chdir:
 		err = sys_chdir((userptr_t)tf->tf_a0);
 		break;
-
+        
 	    case SYS___getcwd:
 		err = sys___getcwd(
 			(userptr_t)tf->tf_a0,
 			tf->tf_a1,
 			&retval);
 		break;
+        
+        case SYS_fork:
+		err = sys_fork(tf, &retval);
+		break;
+		
+        case SYS_getpid:
+		err = sys_getpid(&retval);
+		break;
+		
+		case SYS__exit:
+		sys__exit(tf->tf_a0);
+		err = 0;
+		break;
+		
+		case SYS_waitpid:
+		err = sys_waitpid((pid_t) tf->tf_a0, (int32_t*) tf->tf_a1, (int) tf->tf_a2, (int32_t*)&retval);
+		break;
 
+	    /* Even more system calls will go here */
+	    case SYS_execv:
+	    err = sys_execv((const char *)tf->tf_a0, ( char **)tf->tf_a1);
+	    break;
 
 	    /* Even more system calls will go here */
 

@@ -50,6 +50,7 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <filetable.h>
+#include <synch.h>
 #include <pid.h>
 
 /*
@@ -85,8 +86,30 @@ proc_create(const char *name)
 
 	/* VFS fields */
 	proc->p_cwd = NULL;
+	
+	//Is it needed
+    /*
+	if (!lock_do_i_hold(proc->p_filetable->ft_lock)){    	
+        lock_acquire(proc->p_filetable->ft_lock);	
+    } 
+    */		    
 	proc->p_filetable = NULL;
-    proc.pid = get_available()
+	/*
+	if (lock_do_i_hold(proc->p_filetable->ft_lock)){    	
+        lock_release(proc->p_filetable->ft_lock);	
+    } 		
+	*/
+	//proc->ft_lock = lock_create("ft_lock");
+	
+	proc->pid = get_new_pid();
+	proc->parent_proc = NULL;
+	proc->dead = false;
+	proc->ret_val = 0;
+	
+	proc->childarray = array_create();
+	proc->childarray_lock = lock_create(name);
+	proc->sem_child = sem_create(name, 0);
+	
 	return proc;
 }
 
@@ -107,7 +130,9 @@ proc_destroy(struct proc *proc)
 	 * do, some don't.
 	 */
 
-	KASSERT(proc != NULL);
+	if(proc == NULL){
+	return;
+	}
 	KASSERT(proc != kproc);
 
 	/*
@@ -116,13 +141,24 @@ proc_destroy(struct proc *proc)
 	 * incorrect to destroy it.)
 	 */
 
+
 	/* VFS fields */
 	if (proc->p_cwd) {
 		VOP_DECREF(proc->p_cwd);
 		proc->p_cwd = NULL;
 	}
 	if (proc->p_filetable) {
+	
+	    if (!lock_do_i_hold(proc->p_filetable->ft_lock)){    	
+            lock_acquire(proc->p_filetable->ft_lock);	
+        } 	
+		
 		filetable_destroy(proc->p_filetable);
+		/*
+	    if (lock_do_i_hold(proc->p_filetable->ft_lock)){    	
+            lock_release(proc->p_filetable->ft_lock);	
+        } 
+        */		
 		proc->p_filetable = NULL;
 	}
 
@@ -173,10 +209,16 @@ proc_destroy(struct proc *proc)
 		}
 		as_destroy(as);
 	}
-
+    proc->parent_proc = NULL;
 	threadarray_cleanup(&proc->p_threads);
 	spinlock_cleanup(&proc->p_lock);
-
+	if(proc->sem_child != NULL){
+	    sem_destroy(proc->sem_child);
+	}
+	if(proc->childarray_lock){
+	    lock_destroy(proc->childarray_lock);
+	}
+	//lock_destroy(ft_lock);
 	kfree(proc->p_name);
 	kfree(proc);
 }
@@ -249,19 +291,43 @@ proc_fork(struct proc **ret)
 	struct proc *proc;
 	struct filetable *tbl;
 	int result;
+	
+	int err;
 
-	proc = proc_create(curproc->p_name);
+	proc = proc_create(curproc->p_name); //What happens if not valid Pid added
 	if (proc == NULL) {
 		return ENOMEM;
 	}
-
+	
+	/*
+	At this point both procs should have different PID @Vincent
+	*/
+	
 	/* VM fields */
 	/* do not clone address space -- let caller decide on that */
+	
+	err = as_copy(curproc->p_addrspace, &proc->p_addrspace);
+	
+	if (err){
+	    //due to error we have to free pid so will that be in destroy or individually????
+	    proc_destroy(proc);
+	    return err;
+	}
 
+    //ft lock
+    
 	/* VFS fields */
 	tbl = curproc->p_filetable;
 	if (tbl != NULL) {
+	    //lock
+	    if (!lock_do_i_hold(tbl->ft_lock)){    	
+            lock_acquire(tbl->ft_lock);	
+        } 	    
 		result = filetable_copy(tbl, &proc->p_filetable);
+	    if (lock_do_i_hold(tbl->ft_lock)){    	
+            lock_release(tbl->ft_lock);	
+        } 	 		
+		//release
 		if (result) {
 			as_destroy(proc->p_addrspace);
 			proc->p_addrspace = NULL;
@@ -328,7 +394,9 @@ proc_remthread(struct thread *t)
 	int spl;
 
 	proc = t->t_proc;
-	KASSERT(proc != NULL);
+	if(proc == NULL){
+	    return;
+	}
 
 	spinlock_acquire(&proc->p_lock);
 	/* ugh: find the thread in the array */
@@ -389,4 +457,18 @@ proc_setas(struct addrspace *newas)
 	proc->p_addrspace = newas;
 	spinlock_release(&proc->p_lock);
 	return oldas;
+}
+
+struct proc* 
+find_child_by_pid(struct array* array, pid_t pid){
+    struct proc* tmp_proc;
+    for(unsigned int i = 0; i < array->num; i++){
+        tmp_proc = array_get(array, i); 
+        if(tmp_proc -> pid == pid){
+            array_remove(array, i);
+            return tmp_proc;
+        }
+    }
+    // if child does not exist
+    return NULL;
 }
