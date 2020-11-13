@@ -13,9 +13,9 @@ struct pid *pidtable[PID_MAX+1];
 
 /*
  * Bootstrap method for pid table. Will be initialized when kernel first opens.
+ * Loads the pidtable with pid objects with true flags and a new lock
  */
 void pid_bootstrap(void){
-    // load the pidtable with pid objects with true flags and a new lock
     for(int i = 0; i < PID_MAX+1; i++){
         struct pid* new_pid = (struct pid*) kmalloc(sizeof(struct pid));
         new_pid->flag = true;
