@@ -149,6 +149,7 @@ common_prog(int nargs, char **args)
 	 * once you write the code for handling that.
 	 */
     
+    /* Waits on the child exit semaphore to come back to the menu thread */
     P(proc->sem_child);
 	return 0;
 }
