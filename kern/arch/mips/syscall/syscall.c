@@ -142,6 +142,7 @@ syscall(struct trapframe *tf)
 			tf->tf_a2,
 			&retval);
 		break;
+		
 	    case SYS_write:
 		err = sys_write(
 			tf->tf_a0,
@@ -149,6 +150,7 @@ syscall(struct trapframe *tf)
 			tf->tf_a2,
 			&retval);
 		break;
+		
 	    case SYS_lseek:
 		{
 			/*
@@ -193,6 +195,8 @@ syscall(struct trapframe *tf)
 			&retval);
 		break;
         
+        /* Process calls */
+        
         case SYS_fork:
 		err = sys_fork(tf, &retval);
 		break;
@@ -210,13 +214,9 @@ syscall(struct trapframe *tf)
 		err = sys_waitpid((pid_t) tf->tf_a0, (int32_t*) tf->tf_a1, (int) tf->tf_a2, (int32_t*)&retval);
 		break;
 
-	    /* Even more system calls will go here */
 	    case SYS_execv:
 	    err = sys_execv((const char *)tf->tf_a0, ( char **)tf->tf_a1);
 	    break;
-
-	    /* Even more system calls will go here */
-
 
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
