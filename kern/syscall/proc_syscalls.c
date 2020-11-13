@@ -220,14 +220,8 @@ sys_waitpid(pid_t pid, int32_t *status, int options, int32_t* retval){
 int
 sys_execv(const char * program, char **args){
 
-    int args_size;
-    int ret;
-    struct addrspace *as, *old_as;
-    struct vnode *v;
-    vaddr_t entrypoint, stackptr;
-    int result;  
-
     /*  check if one of the arguments is invalid pointer  */ 
+
     if (program == NULL || args == NULL){
         return EFAULT;
     }
@@ -236,9 +230,8 @@ sys_execv(const char * program, char **args){
         return EFAULT;
     }
 
-    /*
-    *Step1: Copy arguments from the old address space.
-    */
+
+    /* Step1 Copy arguments from the old address space. */
 
     /* copy program path name from user to kernel space */
     char *prog = kmalloc(sizeof(char)*(PATH_MAX)); 
@@ -247,7 +240,7 @@ sys_execv(const char * program, char **args){
         return ENOMEM;
     }
 
-    ret = copyin((const_userptr_t) program, prog, PATH_MAX);
+    int ret = copyin((const_userptr_t) program, prog, PATH_MAX);
 
     if(strlen(prog) == 0){
         kfree(prog);       
@@ -261,20 +254,23 @@ sys_execv(const char * program, char **args){
         return ret;
     }
 
+
+    int args_size = 0;
+
     for (int i=0; i<ARG_MAX; i++){
 
-        if((int *)args[i] == (int *)0x40000000 || (int *)args[i] == (int *)0x80000000){
-            kfree(prog);
-            prog = NULL; 
-            return EFAULT;
-        }        
+    if((int *)args[i] == (int *)0x40000000 || (int *)args[i] == (int *)0x80000000){
+        kfree(prog);
+        prog = NULL; 
+        return EFAULT;
+    }        
 
-        if(args[i]==NULL){
-            break;
-        }
-        else{
-            args_size++;
-        }
+    if(args[i]==NULL){
+        break;
+    }
+    else{
+        args_size++;
+    }
     }
 
     if(args_size > ARG_MAX){
@@ -282,6 +278,7 @@ sys_execv(const char * program, char **args){
         prog = NULL;     
         return E2BIG;
     }
+
 
     /* At this point we have the number of arguments in args */  
     char **kern_args =  kmalloc(sizeof(char *) * args_size); 
@@ -318,13 +315,17 @@ sys_execv(const char * program, char **args){
 
     /*  length of each argument is in len[] */
 
-    /*
-    *Step2: Get a new address space.
-    */    
+    /* Step2 Get a new address space. */    
+
+    struct addrspace *as, *old_as;
+    struct vnode *v;
+    vaddr_t entrypoint, stackptr;
+    int result; 
 
     /*  dont destroy old_as yet */
     old_as = curproc->p_addrspace; 
     curproc->p_addrspace = NULL;    
+
 
     /* We should be a new process. */
     KASSERT(proc_getas() == NULL);
@@ -343,9 +344,7 @@ sys_execv(const char * program, char **args){
         return ENOMEM;
     }
 
-    /*
-    *Step 3 Switch to it and activate it. 
-    */
+    /*Step 3 Switch to it and activate it. */
     proc_setas(as);
     as_activate();
 
@@ -361,9 +360,7 @@ sys_execv(const char * program, char **args){
         return result;
     }
 
-    /*
-    *Step 4 Load the executable.
-    */
+    /*Step 4 Load the executable. */
     result = load_elf(v, &entrypoint);
     if (result) {
         /* p_addrspace will go away when curproc is destroyed */
@@ -381,9 +378,7 @@ sys_execv(const char * program, char **args){
     /* Done with the file now. */
     vfs_close(v);
 
-    /*
-    *Step 5 Define the user stack in the address space. 
-    */
+    /*Step 5 Define the user stack in the address space */
     result = as_define_stack(as, &stackptr);
     if (result) {
         /* p_addrspace will go away when curproc is destroyed */
@@ -397,10 +392,7 @@ sys_execv(const char * program, char **args){
         return result;
     }
 
-    /*
-    *Step 6 Copy args to new as, properly arragning them.
-    */
-
+    /*Step 6 Copy args to new as, properly arragning them*/
     userptr_t args_addr = (userptr_t)(stackptr - sizeof(userptr_t *)*args_size - sizeof(NULL));
     userptr_t *args_out = (userptr_t *)(stackptr - sizeof(char *)*args_size - sizeof(NULL));
     userptr_t kargs_out_addr;
@@ -426,6 +418,7 @@ sys_execv(const char * program, char **args){
         }
         args_out++;  
     }
+
     /*  set last index as NULL  */
     *args_out = NULL;
     kargs_out_addr = (userptr_t) (stackptr - args_size*(sizeof(int)) - sizeof(NULL));
@@ -434,15 +427,12 @@ sys_execv(const char * program, char **args){
 
     kfree(prog);
     prog = NULL;
-    
     for (int i=0; i<args_size; i++){
         kfree(kern_args[i]);
         kern_args[i] = NULL;           
     }
 
-    /*
-    *Step 7 Clean up old address space.
-    */
+    /*Step 7 Can up old address s*/
     as_destroy(old_as);
 
     /*Step 8 Warp to user mode. */
