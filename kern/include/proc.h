@@ -56,8 +56,9 @@ struct proc {
 	struct filetable *p_filetable;	/* table of open files */
 
 	/* add more material here as needed */
-	//struct lock *ft_lock;
+	/*struct lock *ft_lock;*/
 	
+	/* structures to facilitate wait_pid, fork, and exit*/
 	pid_t pid;
 	bool dead;
 	int ret_val;
@@ -65,7 +66,6 @@ struct proc {
 	struct semaphore* sem_child;
 	struct lock* childarray_lock;
 	struct array* childarray;
-	
 	 
 };
 
@@ -97,6 +97,7 @@ struct addrspace *proc_getas(void);
 /* Change the address space of the current process, and return the old one. */
 struct addrspace *proc_setas(struct addrspace *);
 
+/* Finds the child process within the current process's childproc array */
 struct proc* find_child_by_pid(struct array* array, pid_t pid);
 
 #endif /* _PROC_H_ */

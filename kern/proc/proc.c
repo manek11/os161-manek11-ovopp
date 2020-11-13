@@ -218,7 +218,7 @@ proc_destroy(struct proc *proc)
 	if(proc->childarray_lock){
 	    lock_destroy(proc->childarray_lock);
 	}
-	//lock_destroy(ft_lock);
+	/* lock_destroy(ft_lock); */
 	kfree(proc->p_name);
 	kfree(proc);
 }
@@ -294,7 +294,7 @@ proc_fork(struct proc **ret)
 	
 	int err;
 
-	proc = proc_create(curproc->p_name); //What happens if not valid Pid added
+	proc = proc_create(curproc->p_name); 
 	if (proc == NULL) {
 		return ENOMEM;
 	}
@@ -309,17 +309,13 @@ proc_fork(struct proc **ret)
 	err = as_copy(curproc->p_addrspace, &proc->p_addrspace);
 	
 	if (err){
-	    //due to error we have to free pid so will that be in destroy or individually????
 	    proc_destroy(proc);
 	    return err;
 	}
-
-    //ft lock
     
 	/* VFS fields */
 	tbl = curproc->p_filetable;
 	if (tbl != NULL) {
-	    //lock
 	    if (!lock_do_i_hold(tbl->ft_lock)){    	
             lock_acquire(tbl->ft_lock);	
         } 	    
@@ -327,7 +323,6 @@ proc_fork(struct proc **ret)
 	    if (lock_do_i_hold(tbl->ft_lock)){    	
             lock_release(tbl->ft_lock);	
         } 	 		
-		//release
 		if (result) {
 			as_destroy(proc->p_addrspace);
 			proc->p_addrspace = NULL;
@@ -459,6 +454,10 @@ proc_setas(struct addrspace *newas)
 	return oldas;
 }
 
+/*
+ * Looks inside a childproc_array to see if any of the children processes have the same pid as the input pid.
+ * Returns the child proc to the parent when called successful, NULL if not a child.
+ */
 struct proc* 
 find_child_by_pid(struct array* array, pid_t pid){
     struct proc* tmp_proc;
@@ -469,6 +468,5 @@ find_child_by_pid(struct array* array, pid_t pid){
             return tmp_proc;
         }
     }
-    // if child does not exist
     return NULL;
 }
