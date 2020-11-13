@@ -11,7 +11,9 @@
 struct pid *pidtable[PID_MAX+1];
 
 
-
+/*
+ * Bootstrap method for pid table. Will be initialized when kernel first opens.
+ */
 void pid_bootstrap(void){
     // load the pidtable with pid objects with true flags and a new lock
     for(int i = 0; i < PID_MAX+1; i++){
@@ -22,11 +24,12 @@ void pid_bootstrap(void){
     }
 };
 
-
+/*
+ * Recursively calls itself until a pid in the pid table is found.
+ * Checks the table starting at index PID_MIN and to PID_MAX
+ */
 pid_t get_new_pid(void){
     for(int i = PID_MIN; i < PID_MAX+1; i++){
-        // we want to check the value of the pid, then acquire the lock on the pid if it's free (true).
-        // we need to make sure of atomacy, so we check after acquiring lock, if it's now false we release and keep going
         if(pidtable[i]->flag){
             spinlock_acquire(&pidtable[i]->pidlock);
             if(pidtable[i]->flag){
@@ -37,13 +40,15 @@ pid_t get_new_pid(void){
             spinlock_release(&pidtable[i]->pidlock);
         }
     }
-    // rerun the function (this may be...interesting) RECURSION VS WHILE LOOP
+    /* The process will continue to attempt to get a new pid */
     return get_new_pid();
 };
 
+/*
+ * Frees the input pid in the pid table for other processes to acquire them.
+ * Method is called in proc_destroy
+ */
 void close_pid(pid_t pid){
-    // since the table will give out pids and no duplicates
-    // however, we need to make sure that we lock before updating flag
     int index;
     index = (int) pid;
     spinlock_acquire(&pidtable[index]->pidlock);
@@ -52,6 +57,10 @@ void close_pid(pid_t pid){
 }
 
 
+/*
+ * Destroys and cleans up the pid table.
+ * Called at Kernel Shutdown() to free the pid table.
+ */
 void pidtable_cleanup(void){
     for(int i = 0; i < PID_MAX+1; i++){
         spinlock_cleanup(&pidtable[i]->pidlock);
@@ -60,8 +69,10 @@ void pidtable_cleanup(void){
     }
 };
 
+/*
+ * Check if a pid is currently in use.
+ */
 bool check_pidtable(int pid){
     return !pidtable[pid]->flag;
-
 }
 
