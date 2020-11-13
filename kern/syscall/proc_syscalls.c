@@ -26,7 +26,6 @@
 #include <vm.h>
 #include <syscall.h>
 
-
 /*
 * Entrypoint function to be called by thread_fork().
 */
