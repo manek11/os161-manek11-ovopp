@@ -85,7 +85,6 @@ sys_fork(struct trapframe *parent_tf, int32_t *ret){
 	    array_remove(curproc->childarray, index);
 	    return err;
 	}
-	// kprintf("forked a process with pid %d, I am pid: %d\n", forked_proc->pid, curproc->pid);
 
 	return 0;
 }
@@ -163,7 +162,7 @@ sys_waitpid(pid_t pid, int32_t *status, int options, int32_t* retval){
     if(pid < 0 || pid > PID_MAX){
         return ESRCH;
     }
-    // kprintf("Waiting for pid: %d to exit\n", pid);
+
     if(check_pidtable((int) pid)){
 
         struct proc* childproc;
@@ -171,7 +170,6 @@ sys_waitpid(pid_t pid, int32_t *status, int options, int32_t* retval){
         
         if(childproc != NULL){
             P(childproc->sem_child);
-            // kprintf("received pid: %d exiting\n", childproc->pid);
             int ret;
             ret = copyout(&childproc->ret_val, (userptr_t) status, sizeof(int32_t));
             if(ret){
@@ -208,7 +206,6 @@ sys_execv(const char * program, char **args){
     }
 
     if((int *)args == (int *)0x40000000 || (int *)args == (int *)0x80000000){
-        kprintf("here: 211 \n");
         return EFAULT;
     }
 
@@ -218,15 +215,13 @@ sys_execv(const char * program, char **args){
     char *prog = kmalloc(sizeof(char)*(PATH_MAX)); 
     
     if (prog == NULL){
-        kprintf("here: 221 \n");
         return ENOMEM;
     }
     
     int ret = copyin((const_userptr_t) program, prog, PATH_MAX);
     
     if(strlen(prog) == 0){
-        kfree(prog);
-        kprintf("here: 229 \n");        
+        kfree(prog);       
         prog = NULL;
         return EINVAL;
     }
@@ -245,8 +240,7 @@ sys_execv(const char * program, char **args){
           
         if((int *)args[i] == (int *)0x40000000 || (int *)args[i] == (int *)0x80000000){
             kfree(prog);
-            prog = NULL;
-            kprintf("here: 249 \n"); 
+            prog = NULL; 
             return EFAULT;
         }        
  
@@ -261,8 +255,7 @@ sys_execv(const char * program, char **args){
     if(args_size > ARG_MAX){
         // have to free the prog before exiting
         kfree(prog);
-        prog = NULL;
-        kprintf("here: 265 \n");        
+        prog = NULL;     
         return E2BIG;
     }
     
@@ -278,7 +271,6 @@ sys_execv(const char * program, char **args){
          err = copyinstr((const_userptr_t) args[i], string, (strlen(args[i]) + 1), &length);
          
          if(err){  
-             kprintf("here: 281 \n");
              kfree(string);
              string = NULL;
              kfree(len);
@@ -289,13 +281,7 @@ sys_execv(const char * program, char **args){
              prog = NULL;
              return err;
          }
-            /*
-         len[i] = length;
-         char ch = '\0';
-         for(unsigned int j = length; j < (length + (4 - (length % 4))); j++){
-            string[j] = ch;
-         }
-*/
+
          len[i] = strlen(string);
          char ch = '\0';
          for(int j = len[i]; j < (len[i] + (4 - (len[i] % 4))); j++){
@@ -393,6 +379,11 @@ sys_execv(const char * program, char **args){
     userptr_t *args_out = (userptr_t *)(stackptr - sizeof(char *)*args_size - sizeof(NULL));
     userptr_t kargs_out_addr;
     
+    /**
+    *
+    * We loop through our entire argument array and put the address into args_out.
+    * kargs_out_addr will point to the address of args_out[0]. 
+    */
     for(int i = 0; i < args_size; i++){
         size_t actual = 0;
         args_addr -= (len[i]+(4 - (len[i]%4)));
@@ -410,18 +401,18 @@ sys_execv(const char * program, char **args){
         }
         args_out++;  
     }
-    //set last as NULL
+    //set last index as NULL
     *args_out = NULL;
     kargs_out_addr = (userptr_t) (stackptr - args_size*(sizeof(int)) - sizeof(NULL));
     args_addr -= (int) args_addr % sizeof(void*);  
     stackptr = (vaddr_t)args_addr; 
-    
-        kfree(prog);
-        prog = NULL;
-        for (int i=0; i<args_size; i++){
-            kfree(kern_args[i]);
-            kern_args[i] = NULL;           
-        }
+
+    kfree(prog);
+    prog = NULL;
+    for (int i=0; i<args_size; i++){
+        kfree(kern_args[i]);
+        kern_args[i] = NULL;           
+    }
     
     /*Step 7 Can up old as*/
     as_destroy(old_as);
