@@ -1,0 +1,10 @@
+--- kern/test/synchtest.c	Wed Sep 24 21:07:31 2014 -0400
++++ kern/test/synchtest.c	Wed Sep 24 21:09:36 2014 -0400
+@@ -32,6 +32,7 @@
+  */
+ 
+ #include <types.h>
++#include <kern/wait.h>
+ #include <lib.h>
+ #include <clock.h>
+ #include <thread.h>

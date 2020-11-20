@@ -1,0 +1,28 @@
+--- kern/conf/conf.kern	Wed Sep 24 21:07:31 2014 -0400
++++ kern/conf/conf.kern	Wed Sep 24 21:09:36 2014 -0400
+@@ -331,6 +331,7 @@
+ #
+ 
+ file      proc/proc.c
++file      proc/pid.c
+ 
+ #
+ # Virtual memory system
+@@ -378,6 +379,7 @@
+ file      syscall/openfile.c
+ file      syscall/runprogram.c
+ file      syscall/file_syscalls.c
++file      syscall/proc_syscalls.c
+ file      syscall/time_syscalls.c
+ 
+ #
+@@ -431,6 +433,9 @@
+ #                                      #
+ ########################################
+ 
++# For testing the wait implementation.
++file		test/waittest.c
++
+ file		test/arraytest.c
+ file		test/bitmaptest.c
+ file		test/threadlisttest.c

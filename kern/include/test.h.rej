@@ -1,0 +1,12 @@
+--- kern/include/test.h	Wed Sep 24 21:07:31 2014 -0400
++++ kern/include/test.h	Wed Sep 24 21:09:36 2014 -0400
+@@ -40,6 +40,9 @@
+  * Test code.
+  */
+ 
++/* For testing the wait implementation. */
++int waittest(int, char **);
++
+ /* data structure tests */
+ int arraytest(int, char **);
+ int bitmaptest(int, char **);
