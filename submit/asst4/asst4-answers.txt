@@ -1,0 +1,257 @@
+Q1. What are the ELF magic numbers?
+
+A1. /* For e_ident[EI_MAG0..3] */
+    #define	ELFMAG0		0x7f
+    #define	ELFMAG1		'E'
+    #define	ELFMAG2		'L'
+    #define	ELFMAG3		'F'
+    These can be found on line 82: of elf.h ~os161/src/kern/include/elf.h
+    Executable and Linkable Format (ELF) represents a common standard file format. 
+    The ELF file header struct contains unsigned char	e_ident[ELF_NIDENT] /* magic number et al. */ at line 52.
+    The ELF number specifies how the file should be interpreted.
+
+Q2. What is the difference between UIO_USERISPACE and UIO_USERSPACE? When should one use UIO_SYSSPACE instead?
+
+A2. /* Source/destination. */
+            UIO_USERISPACE,			/* User process code. */
+            UIO_USERSPACE,			/* User process data. */
+            UIO_SYSSPACE,			/* Kernel. */    
+    line 67: ~os161/src/kern/include/uio.h
+    
+    u.uio_segflg = is_executable ? UIO_USERISPACE : UIO_USERSPACE 
+    line 102: kern/syscall/loadelf.c:
+    
+    line 83: kern/lib/uio.c (Translate the meaning)
+    UIO_USERISPACE keeps the process code of the user, while UIO_USERSPACE keeps the process data. 
+    UIO_SYSSPACE is used when there is a data transfer request inside kernel space to handles kernel data.
+
+Q3. Why can the struct uio that is used to read in a segment be allocated on the stack in load_segment() (i.e., where does the memory read actually go)?
+
+A3. From Line 79: kern/syscall/loadelf.c basicallly we see that struct uio points to a a virtual address vaddr which is why it can be allocated on the stack. Also, we can see from 
+    line 541 of ~kern/dev/lamebus/emu.c that data of vnode is read to uio.
+
+
+Q4. In runprogram(), why is it important to call vfs_close() before going to usermode?
+
+A4. vfs_close  - Close a vnode opened with vfs_open. Does not fail. line 100 kern/include/vfs.h
+    Once the executable file is loaded, it must be closed so that if multiple threads or processes try to open the same file, they can without any errors. 
+    
+
+Q5. What function forces the processor to switch into usermode? Is this function machine dependent?
+    
+A5. mips_usermode() located on line 368: kern/arch/mips/locore/trap.c is used to force the processor to switch into user mode which is called from:
+    - enter_new_process, for use by exec and equivalent.
+    - enter_forked_process, in syscall.c, for use by fork.
+    
+    No, this function is machine independent. It works by jumping into the exception return code. line 340: kern/arch/mips/locore/exception-mips1.S
+    
+    
+Q6. In what file are copyin and copyout defined? memmove? Why can't copyin and copyout be implemented as simply as memmove?
+
+A6. copyin and cpyout are defined in ~os161/src/kern/vm/copyinout.c
+    memmove is define in ~os161/src/common/libc/string/memmove.c
+    Memmove is a C standard function whereas copyin and copyout are not. 
+    Copyin and Copyout copies memory between kernel and user space, and checks if the user pointer do not access
+    inaccessible memory. Memmove does not check this.
+
+
+Q7. What (briefly) is the purpose of userptr_t?
+
+A7. A pointer is a user pointer if it *came* from userspace, not necessarily if it *points* to userspace. If a system call passes 0xdeadbeef, it points to the kernel, but it's
+	still a user pointer. 
+	line 43: ~os161/src/build/install/include/kern/iovec.h
+
+
+Q8. What is the numerical value of the exception code for a MIPS system call?
+
+A8. #define EX_SYS    8    /* Syscall */
+    line 91: ~os161/src/kern/arch/mips/include/trapframe.h
+
+
+Q9. How many bytes is an instruction in MIPS? (Answer this by reading syscall() carefully, not by looking somewhere else.)
+
+A9. 32/64 bits based on what the return value of v0 register of trapframe struct.
+    line 57: os161/src/kern/arch/mips/syscall/syscall.c
+    line 68: userland/lib/libc/arch/mips/syscalls-mips.S (v0 and v1 for a 64-bit return value)
+
+Q10. Why do you "probably want to change" the implementation of kill_curthread()?
+
+A10. Not accounted for all possible code values from MIPS exception codes from line 91: ~os161/src/kern/arch/mips/include/trapframe.h
+     All values can be accounted by matching from trapframe.h to kern/include/kern/signal.h 
+     Additionally, we do not want to panic and crash the system without returning information on why it may error. 
+                  
+
+Q11. What would be required to implement a system call that took more than 4 arguments?
+
+A11. Push more arguments on stack. Do whatever computations are required and then pop them from the stack.   
+     On entry, call number in v0. The rest is like a normal function
+     call: four args in a0-a3, the other args on the stack.
+     from line 64:  userland/lib/libc/arch/mips/syscalls-mips.S  
+   
+
+Q12. What is the purpose of the SYSCALL macro?
+
+A12. from line45:  build/userland/lib/libc/syscalls.S:
+     All we do is load the syscall number into v0, the register the
+     kernel expects to find it in, and jump to the shared syscall code.    
+
+Q13. What is the MIPS instruction that actually triggers a system call? (Answer this by reading the source in this directory, not looking somewhere else.)
+    
+A13. From Line 84 and 85 of: userland/lib/libc/arch/mips/syscalls-mips.S       
+
+Q14. After reading syscalls-mips.S and syscall.c, you should be prepared to answer the following question: OS/161 supports 64-bit values; lseek() takes and returns 
+     a 64-bit offset value. Thus, lseek() takes a 32-bit file handle (arg0), a 64-bit offset (arg1), a 32-bit whence (arg2), and needs to return a 64-bit offset value. 
+     In void syscall(struct trapframe *tf) where will you find each of the three arguments (in which registers) and how will you return the 64-bit offset?
+     
+A14. 32-bit file handle (arg0): a0
+     a 64-bit offset (arg1):    a2/a3    
+     a 32-bit whence (arg2):    stack     
+     64-bit offset:             v0/v1    
+     
+     line 46: os161/src/kern/arch/mips/syscall/syscall.c
+     
+Q15: As you were reading the code in runprogram.c and loadelf.c, you probably noticed how the kernel manipulates the files. Which kernel function is called to open a file? 
+     Which macro is called to read the file? What about to write a file? Which data structure is used in the kernel to represent an open file? 
+     
+A15. open file:     vfs_open()
+     read file:     VOP_READ()
+     write file:    VOP_WRITE()
+     The kernel can use a file object to represent the open file.
+     The file object would contain the vnode, flag, offset, and mode.
+     These files would then be in a file-table (file array)
+     
+Q16: What is the purpose of VOP_INCREF and VOP_DECREF?
+
+A16. VOP_INCREF: Increment refcount of vnode. 
+     VOP_DECREF: Decrement refcount of vnode. Calls VOP_RECLAIM if the refcount hits zero.                  
+        
+
+///////////////////////////////////
+     
+Discussion for implementations:
+
+remember to account for the return errors for methods used to implement.
+
+open():
+arguments: flags (7 flags: O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, O_EXCL, O_TRUNC, O_APPEND) and file name
+returns: non negative return, -1 for error
+
+checks for error: 
+STDIN_FILENO (0), STDOUT_FILENO (1), STDERR_FILENO(2)
+ENODEV	The device prefix of filename did not exist.
+ENOTDIR	A non-final component of filename was not a directory.
+ENOENT	A non-final component of filename did not exist.
+ENOENT	The named file does not exist, and O_CREAT was not specified.
+EEXIST	The named file exists, and O_EXCL was specified.
+EISDIR	The named object is a directory, and it was to be opened for writing.
+EMFILE	The process's file table was full, or a process-specific limit on open files was reached.
+ENFILE	The system file table is full, if such a thing exists, or a system-wide limit on open files was reached.
+ENXIO	The named object is a block device with no filesystem mounted on it.
+ENOSPC	The file was to be created, and the filesystem involved is full.
+EINVAL	flags contained invalid values.
+EIO	A hard I/O error occurred.
+EFAULT	filename was an invalid pointer.
+
+Doesn't do anything to the filepath. It accesses the file-name in the file table. Updates the file table if it adds a new file (O_CREAT).
+
+os161/src/kern/vfspath.c: vfs_open()
+kern/test/fstest.c: can be used to test
+#define SYS_open         45
+race conditions: If another thread or another process has the file, the thread can only read. if not, then have to deny access.
+refer to file descriptors in unix
+
+
+read():
+args: fd (file descriptor), void *buf ,size_t buflen
+returns: -1 for error, 0 - #bytes read is returned
+errors: 
+EBADF	fd is not a valid file descriptor, or was not opened for reading.
+EFAULT	Part or all of the address space pointed to by buf is invalid.
+EIO	    A hardware I/O error occurred reading the data.
+
+read accesses the current position of the file table, does not modify
+doread() userland/bin/tac/tac.c copyin/copyout
+
+write():
+args: fd (file descriptor), const void *buffer, size_t nbytes)
+returns: the count of bytes written, should be positive. 0 means nothing could be written, but no error. -1 merans error, sets errno to a suitable error code.
+Error code: 
+The following error codes should be returned under the conditions given. Other error codes may be returned for other cases not mentioned here.
+ 	EBADF	fd is not a valid file descriptor, or was not opened for writing.
+    EFAULT	Part or all of the address space pointed to by buf is invalid.
+    ENOSPC	There is no free space remaining on the filesystem containing the file.
+    EIO	    A hardware I/O error occurred writing the data.
+
+modifies the file on the file table.
+dowrite() userland/bin/tac/tac.c
+
+
+close():
+args: fd (file descriptor)
+returns 0 success, -1 error
+handles errors:
+The following error codes should be returned under the conditions given. Other error codes may be returned for other cases not mentioned here.
+ 	EBADF	fd is not a valid file handle.
+    EIO	A hard I/O error occurred.
+doesn't modify anything in the file table.
+vfs_close() in vfspath.c
+
+
+lseek():
+args: fd, off_t pos, int whence
+alters the seek position
+returns the new position, on error -1.
+
+If whence is
+    SEEK_SET, the new position is pos.
+    SEEK_CUR, the new position is the current position plus pos.
+    SEEK_END, the new position is the position of end-of-file plus pos.
+    anything else, lseek fails.
+pos is a signed entity
+lseek modifies the file table. Changes the pointer location of the file.
+handles errors:
+The following error codes should be returned under the conditions given. Other error codes may be returned for other cases not mentioned here.
+ 	EBADF	fd is not a valid file descriptor, or was not opened for reading.
+    EFAULT	Part or all of the address space pointed to by buf is invalid.
+    EIO	A hardware I/O error occurred reading the data.
+
+dolseek() userland/bin/tac/tac.c
+
+
+
+chdir():
+args: pathname
+returns 0, -1 for error
+The following error codes should be returned under the conditions given. Other error codes may be returned for other errors not mentioned here.
+ 	ENODEV	The device prefix of pathname did not exist.
+    ENOTDIR	A non-final component of pathname was not a directory.
+    ENOTDIR	pathname did not refer to a directory.
+    ENOENT	pathname did not exist.
+    EIO	A hard I/O error occurred.
+    EFAULT	pathname was an invalid pointer.
+changes the pointer to the current directory, doesn't modify file table.
+vfs_chdir()
+
+
+
+__getcwd():
+args: char buffer, size(len of buffer);
+returns length of the data, -1 for error
+The following error codes should be returned under the conditions given. Other error codes may be returned for other cases not mentioned here.
+ 	ENOENT	A component of the pathname no longer exists.
+    EIO	A hard I/O error occurred.
+    EFAULT	buf points to an invalid address.
+Does not modify the file table.
+getcwd(): in userland/lib/libc/unix/getcwd.c
+
+
+dup2():
+args: old fd, new fd
+returns the newfd, -1 otherwise for errors
+The following error codes should be returned under the conditions given. Other error codes may be returned for other cases not mentioned here.
+ 	EBADF	oldfd is not a valid file handle, or newfd is a value that cannot be a valid file handle.
+    EMFILE	The process's file table was full, or a process-specific limit on open files was reached.
+    ENFILE	The system's file table was full, if such a thing is possible, or a global limit on open files was reached.
+Modifies file table
+Race condition, need to lock both files
+include <unistd.h> to access functions for dup2.
