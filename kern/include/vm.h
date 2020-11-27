@@ -37,6 +37,7 @@
  */
 
 
+
 #include <machine/vm.h>
 
 /* Fault-type arguments to vm_fault() */
@@ -44,6 +45,29 @@
 #define VM_FAULT_WRITE       1    /* A write was attempted */
 #define VM_FAULT_READONLY    2    /* A write to a readonly page was attempted*/
 
+/* Possible states for the coremap_entry page */
+#define FREE    0
+#define DIRTY   1
+#define FIXED   2
+#define CLEAN   3
+
+
+struct coremap_entry {
+    int status;
+    
+    /* mapping virtual to physical address */
+    struct addrspace *as;
+    paddr_t pfn;
+    vaddr_t vfn;
+    __time_t time_stamp; /* gettime()->tv_sec, we will check and evict the minimum time page */
+    
+        
+};
+
+struct coremap_entry *coremap;
+
+/* CORE MAP FUNCTIONS */
+void free_page();
 
 /* Initialization function */
 void vm_bootstrap(void);
