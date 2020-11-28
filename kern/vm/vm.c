@@ -10,7 +10,9 @@
 #include <vm.h>
 
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
+static struct lock *coremap_lock = lock_create("coremap_lock");
 static bool bootstrapped = false;
+static int num_pages = 0;
 
 void
 vm_bootstrap(void)
@@ -22,15 +24,19 @@ vm_bootstrap(void)
     
     lastaddr = ram_getsize();
     
-    int num_pages = lastaddr/ PAGE_SIZE;
+    num_pages = lastaddr / PAGE_SIZE;
     
     
     int coremap_size_page = sizeof(struct coremap_entry coremap[numpages]) / PAGE_SIZE;
     coremap[num_pages] = ramsteal_mem(coremap_size_page); // ask TA tmr if this will initialize the array at first addr
-    firstaddr = ram_getfirstfree();
-    remaining_pages = (lastaddr - firstaddr)/PAGE_SIZE;
-    /* We advance the first address to accomodate the coremap in memory */
     
+    firstaddr = ram_getfirstfree();
+    // first_addr += coremap_size
+    // convert firstaddr to kva. Make sure first >= last
+    // coremap live in kva, figure out which addr the kva is at, loop through and init each entry
+    
+    remaining_pages = (lastaddr - firstaddr)/PAGE_SIZE;
+    int coremap_size = remaining_pages * sizeof(struct coremap_entry);
     for(int i = 0; i < remaining_pages; i++){
         coremap[i]->status = DIRTY;
         coremap[i]->pfn = firstaddr + PAGE_SIZE * i;
@@ -45,12 +51,7 @@ paddr_t
 getppages(unsigned long npages)
 {
 	paddr_t addr;
-
-	spinlock_acquire(&stealmem_lock);
-
 	addr = coremap_get_pages(npages);
-
-	spinlock_release(&stealmem_lock);
 	return addr;
 }
 
@@ -69,9 +70,23 @@ alloc_kpages(unsigned npages)
 void
 free_kpages(vaddr_t addr)
 {
-	/* nothing - leak the memory. */
-
-	(void)addr;
+	struct coremap_entry entry = coremap_find_entry_by_vaddr(addr);
+	if(entry == NULL){
+	    kprinf("virtual address did not map to any coremap entry");
+	    return;
+	}
+	else{
+	    lock_acquire(coremap_lock);
+	    entry->status = FREE;
+	    
+	    if (entry->as != NULL){
+	        // unmap the entry
+	        // shootdown tlb entry
+	        entry->pfn = NULL;
+	        entry->vfn = NULL; // ?
+	    }
+	    lock_release(coremap_lock);
+	}
 }
 
 void
@@ -188,3 +203,56 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	return EFAULT;
 }
 
+/* COREMAP FUNCTIONS */
+
+/* gets the coremap entry based on the physical address */
+struct coremap_entry coremap_find_entry_by_vaddr(paddr_t addr){
+    for (int i = 0; i < num_pages; i++){
+        if(coremap[i]->pfn == addr){
+            return coremap[i];
+        }
+    }   
+    return NULL;
+}
+
+/* We look through the coremap and find a contiguous block based on npages*/
+paddr_t coremap_get_pages(int npages){
+    // error cannot request 0 pages
+    if(npages == 0){
+        return 0;
+    }
+    else if(npages == 1){
+        lock_acquire(coremap_lock);
+        for(int i = 0 ; i < num_pages ; i++){
+            if(coremap[i] -> status == FREE){
+                // should pass argument of va and as?
+                coremap[i] -> status == DIRTY;
+                coremap[i] -> as = proc_getas();
+                coremap[i] -> vfn = PADDR_TO_KVADDR(coremap[i]->pfn);
+                lock_release(coremap_lock);
+                return coremap[i] -> pfn;
+            }
+        }
+        lock_release(coremap_lock);
+        return ENOMEM;
+    }
+    else{
+        lock_acquire(coremap_lock);
+        int i = 0;
+        int j = 0;
+        while(i != (num_pages - npages) && j != npages){
+            if(core_map[i+j] == FREE){
+                j++
+            }
+            else{
+                i = j + 1;
+                j = 0;
+            }
+        
+        }        
+                
+        lock_release(coremap_lock);
+    
+    }
+
+}

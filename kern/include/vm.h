@@ -60,14 +60,15 @@ struct coremap_entry {
     paddr_t pfn;
     vaddr_t vfn;
     __time_t time_stamp; /* gettime()->tv_sec, we will check and evict the minimum time page */
-    
-        
+            
 };
 
 struct coremap_entry *coremap;
 
 /* CORE MAP FUNCTIONS */
-void free_page();
+struct coremap_entry coremap_find_entry_by_vaddr(vaddr_t addr);
+
+paddr_t coremap_get_pages(int npages);
 
 /* Initialization function */
 void vm_bootstrap(void);

@@ -40,6 +40,12 @@
  * used. The cheesy hack versions in dumbvm.c are used instead.
  */
 
+/*
+ * manager for creating addresspace.
+ * 
+
+
+*/
 struct addrspace *
 as_create(void)
 {
@@ -133,7 +139,8 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 	/*
 	 * Write this.
 	 */
-
+    // segments, base vaddr, array of pages (each entry of coremap uses the same pages), defining overlaps
+    // we don't want multiple / overlapping segments
 	(void)as;
 	(void)vaddr;
 	(void)sz;
