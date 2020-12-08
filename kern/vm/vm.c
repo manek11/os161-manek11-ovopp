@@ -7,41 +7,73 @@
 #include <current.h>
 #include <mips/tlb.h>
 #include <addrspace.h>
+#include <synch.h>
 #include <vm.h>
 
+#define DUMBVM_STACKPAGES    18
+
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
-static struct lock *coremap_lock = lock_create("coremap_lock");
+static struct coremap_entry *coremap;
 static bool bootstrapped = false;
 static int num_pages = 0;
 
 void
 vm_bootstrap(void)
 {
-
-    spinlock_acquire(&stealmem_lock);
+    coremap_lock = lock_create("coremap_lock");
+    size_t coremap_size;
     paddr_t firstaddr, lastaddr;
+    spinlock_acquire(&stealmem_lock);
     // [coremap array] - firstaddr ----------- lastaddr
-    
     lastaddr = ram_getsize();
-    
-    num_pages = lastaddr / PAGE_SIZE;
-    
-    
-    int coremap_size_page = sizeof(struct coremap_entry coremap[numpages]) / PAGE_SIZE;
-    coremap[num_pages] = ramsteal_mem(coremap_size_page); // ask TA tmr if this will initialize the array at first addr
-    
+    // kprintf("%d last addr", lastaddr);
     firstaddr = ram_getfirstfree();
-    // first_addr += coremap_size
-    // convert firstaddr to kva. Make sure first >= last
+    num_pages = (lastaddr-firstaddr) / PAGE_SIZE;
+    // kprintf("%d first addr\n",firstaddr);
+    
+    coremap_size = num_pages * sizeof(struct coremap_entry);
+    if(firstaddr + coremap_size >= lastaddr){
+        panic("Coremap takes up too much physical memory");    
+    }
+    
+    coremap = (struct coremap_entry*) PADDR_TO_KVADDR(firstaddr);
+    
     // coremap live in kva, figure out which addr the kva is at, loop through and init each entry
     
-    remaining_pages = (lastaddr - firstaddr)/PAGE_SIZE;
-    int coremap_size = remaining_pages * sizeof(struct coremap_entry);
-    for(int i = 0; i < remaining_pages; i++){
-        coremap[i]->status = DIRTY;
-        coremap[i]->pfn = firstaddr + PAGE_SIZE * i;
+    paddr_t remaining_addr = firstaddr + num_pages * sizeof(struct coremap_entry);
+    
+    // we need to make the first couple pages in coremap fixed
+    // we need to make sure the size is aligned to page_size
+    int fixed_pages = (num_pages / PAGE_SIZE);
+    
+    if(remaining_addr  % PAGE_SIZE != 0){
+        fixed_pages++;
     }
-        
+    
+    /* We set the first couple pages of the coremap to essentially contain the coremap*/
+    for(int i = 0; i < fixed_pages; i++){
+        coremap[i].status = FIXED;
+        coremap[i].pfn = PAGE_SIZE * i;
+        coremap[i].vfn = PADDR_TO_KVADDR(coremap[i].pfn);
+        coremap[i].as = 0x0;
+    }
+    
+    /* set remaining pages to be free*/
+    for(int i = fixed_pages ; i < num_pages; i++){
+        coremap[i].status = FREE;
+        coremap[i].pfn = PAGE_SIZE * i;
+        coremap[i].vfn = 0x0;
+        coremap[i].as = 0x0;
+    }
+    /*
+    kprintf("\n==== This is every coremap entry ====\n");
+    for(int i = 0 ; i < 50; i++){
+        kprintf("Entry %d\n", i);
+        kprintf("Coremap Status: %d\n", coremap[i].status);
+        kprintf("Coremap VFN: %d\n", coremap[i].vfn);
+        kprintf("Coremap PFN: %d\n", coremap[i].pfn);
+    }
+    */
 	bootstrapped = true;
 	spinlock_release(&stealmem_lock);
 }
@@ -51,7 +83,15 @@ paddr_t
 getppages(unsigned long npages)
 {
 	paddr_t addr;
-	addr = coremap_get_pages(npages);
+
+	// spinlock_acquire(&stealmem_lock);
+    if(bootstrapped == false){
+	addr = ram_stealmem(npages);
+    }
+    else{
+        addr = coremap_get_pages(npages);
+    }
+	// spinlock_release(&stealmem_lock);
 	return addr;
 }
 
@@ -60,9 +100,18 @@ vaddr_t
 alloc_kpages(unsigned npages)
 {
 	paddr_t pa;
-	pa = getppages(npages);
-	if (pa==0) {
-		return 0;
+	if(bootstrapped == 0){
+	    pa = getppages(npages);
+	}
+	else{
+	    for(int i = 0; i < num_pages; i++){
+	        if(coremap[i].status == FREE){
+	            coremap[i].status = FIXED;
+	            pa = coremap[i].pfn;
+	            coremap[i].vfn = PADDR_TO_KVADDR(pa);
+	            break;
+	        }
+	    }
 	}
 	return PADDR_TO_KVADDR(pa);
 }
@@ -70,22 +119,20 @@ alloc_kpages(unsigned npages)
 void
 free_kpages(vaddr_t addr)
 {
-	struct coremap_entry entry = coremap_find_entry_by_vaddr(addr);
+	struct coremap_entry* entry = coremap_find_entry_by_vaddr(addr);
 	if(entry == NULL){
-	    kprinf("virtual address did not map to any coremap entry");
+	    kprintf("virtual address did not map to any coremap entry");
 	    return;
 	}
 	else{
-	    lock_acquire(coremap_lock);
+	    // lock_acquire(coremap_lock);
 	    entry->status = FREE;
-	    
 	    if (entry->as != NULL){
-	        // unmap the entry
-	        // shootdown tlb entry
-	        entry->pfn = NULL;
-	        entry->vfn = NULL; // ?
+	        entry->pfn = 0;
+	        entry->vfn = 0;
+	        entry->as = 0x0;
 	    }
-	    lock_release(coremap_lock);
+	    // lock_release(coremap_lock);
 	}
 }
 
@@ -205,11 +252,11 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 /* COREMAP FUNCTIONS */
 
-/* gets the coremap entry based on the physical address */
-struct coremap_entry coremap_find_entry_by_vaddr(paddr_t addr){
+/* gets the coremap entry based on the virtual address */
+struct coremap_entry * coremap_find_entry_by_vaddr(vaddr_t addr){
     for (int i = 0; i < num_pages; i++){
-        if(coremap[i]->pfn == addr){
-            return coremap[i];
+        if(coremap[i].vfn == addr){
+            return &coremap[i];
         }
     }   
     return NULL;
@@ -224,35 +271,18 @@ paddr_t coremap_get_pages(int npages){
     else if(npages == 1){
         lock_acquire(coremap_lock);
         for(int i = 0 ; i < num_pages ; i++){
-            if(coremap[i] -> status == FREE){
-                // should pass argument of va and as?
-                coremap[i] -> status == DIRTY;
-                coremap[i] -> as = proc_getas();
-                coremap[i] -> vfn = PADDR_TO_KVADDR(coremap[i]->pfn);
+            if(coremap[i].status == FREE){
+                coremap[i].status = DIRTY;
+                coremap[i].as = proc_getas();
+                coremap[i].vfn = PADDR_TO_KVADDR(coremap[i].pfn);
                 lock_release(coremap_lock);
-                return coremap[i] -> pfn;
-            }
-        }
+                return coremap[i].pfn;
+            }        }
         lock_release(coremap_lock);
         return ENOMEM;
     }
     else{
-        lock_acquire(coremap_lock);
-        int i = 0;
-        int j = 0;
-        while(i != (num_pages - npages) && j != npages){
-            if(core_map[i+j] == FREE){
-                j++
-            }
-            else{
-                i = j + 1;
-                j = 0;
-            }
-        
-        }        
-                
-        lock_release(coremap_lock);
-    
+        kprintf("\nRequested more than one page!\n");
+        panic("Go crazy");
     }
-
 }

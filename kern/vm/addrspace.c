@@ -31,6 +31,10 @@
 #include <kern/errno.h>
 #include <lib.h>
 #include <proc.h>
+#include <spl.h>
+#include <spinlock.h>
+#include <current.h>
+#include <mips/tlb.h>
 #include <addrspace.h>
 #include <vm.h>
 
@@ -59,7 +63,12 @@ as_create(void)
 	/*
 	 * Initialize as needed.
 	 */
-
+    as->as_vbase1 = 0;
+    as->as_vbase2 = 0;
+    as->as_npages1 = 0;
+    as->as_npages2 = 0;
+    as->as_heapbase = 0;
+    as->as_stackpbase = 0;
 	return as;
 }
 
@@ -72,12 +81,17 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	if (newas==NULL) {
 		return ENOMEM;
 	}
+	
+	newas->as_vbase1 = old->as_vbase1;
+	newas->as_vbase2 = old->as_vbase2;
+	newas->as_npages1 = old->as_npages1;
+	newas->as_npages2 = old->as_npages2;
+	newas->as_heapbase = newas->as_vbase2 + (newas->as_npages2*PAGE_SIZE);
+	newas->as_stackpbase = newas->as_heapbase;
 
 	/*
 	 * Write this.
 	 */
-
-	(void)old;
 
 	*ret = newas;
 	return 0;
@@ -96,20 +110,24 @@ as_destroy(struct addrspace *as)
 void
 as_activate(void)
 {
+	int i, spl;
 	struct addrspace *as;
 
 	as = proc_getas();
 	if (as == NULL) {
-		/*
-		 * Kernel thread without an address space; leave the
-		 * prior address space in place.
-		 */
 		return;
 	}
 
-	/*
-	 * Write this.
-	 */
+	/* Disable interrupts on this CPU while frobbing the TLB. */
+	spl = splhigh();
+
+	for (i=0; i<NUM_TLB; i++) {
+		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
+	}
+
+	splx(spl);
+	 
+
 }
 
 void
@@ -141,12 +159,30 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 	 */
     // segments, base vaddr, array of pages (each entry of coremap uses the same pages), defining overlaps
     // we don't want multiple / overlapping segments
-	(void)as;
-	(void)vaddr;
-	(void)sz;
-	(void)readable;
+    int npages;
+    (void)readable;
 	(void)writeable;
 	(void)executable;
+    sz += vaddr & ~(vaddr_t) PAGE_FRAME;
+    vaddr &= PAGE_FRAME;
+    sz = (sz + PAGE_SIZE - 1) & PAGE_FRAME;
+    npages = sz / PAGE_SIZE;
+    if (as->as_vbase1 == 0) {
+		as->as_vbase1 = vaddr;
+		as->as_npages1 = npages;
+		as->as_heapbase = as->as_vbase2 + (as->as_npages2 * PAGE_SIZE);
+		as->as_stackpbase = as->as_heapbase;
+		return 0;
+	}
+
+	if (as->as_vbase2 == 0) {
+		as->as_vbase2 = vaddr;
+		as->as_npages2 = npages;
+		as->as_heapbase = as->as_vbase2 + (as->as_npages2 * PAGE_SIZE);
+		as->as_stackpbase = as->as_heapbase;
+		return 0;
+	}
+
 	return ENOSYS;
 }
 
