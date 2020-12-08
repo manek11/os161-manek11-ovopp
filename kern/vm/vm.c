@@ -65,15 +65,7 @@ vm_bootstrap(void)
         coremap[i].vfn = 0x0;
         coremap[i].as = 0x0;
     }
-    /*
-    kprintf("\n==== This is every coremap entry ====\n");
-    for(int i = 0 ; i < 50; i++){
-        kprintf("Entry %d\n", i);
-        kprintf("Coremap Status: %d\n", coremap[i].status);
-        kprintf("Coremap VFN: %d\n", coremap[i].vfn);
-        kprintf("Coremap PFN: %d\n", coremap[i].pfn);
-    }
-    */
+    
 	bootstrapped = true;
 	spinlock_release(&stealmem_lock);
 }
@@ -84,14 +76,14 @@ getppages(unsigned long npages)
 {
 	paddr_t addr;
 
-	// spinlock_acquire(&stealmem_lock);
+	spinlock_acquire(&stealmem_lock);
     if(bootstrapped == false){
 	addr = ram_stealmem(npages);
     }
     else{
         addr = coremap_get_pages(npages);
     }
-	// spinlock_release(&stealmem_lock);
+	spinlock_release(&stealmem_lock);
 	return addr;
 }
 
@@ -106,9 +98,11 @@ alloc_kpages(unsigned npages)
 	else{
 	    for(int i = 0; i < num_pages; i++){
 	        if(coremap[i].status == FREE){
+	            lock_acquire(coremap_lock);
 	            coremap[i].status = FIXED;
 	            pa = coremap[i].pfn;
 	            coremap[i].vfn = PADDR_TO_KVADDR(pa);
+	            lock_release(coremap_lock);
 	            break;
 	        }
 	    }
@@ -125,28 +119,31 @@ free_kpages(vaddr_t addr)
 	    return;
 	}
 	else{
-	    // lock_acquire(coremap_lock);
+	    lock_acquire(coremap_lock);
 	    entry->status = FREE;
 	    if (entry->as != NULL){
 	        entry->pfn = 0;
 	        entry->vfn = 0;
 	        entry->as = 0x0;
 	    }
-	    // lock_release(coremap_lock);
+	    lock_release(coremap_lock);
 	}
 }
 
 void
 vm_tlbshootdown_all(void)
 {
-	panic("dumbvm tried to do tlb shootdown?!\n");
+    lock_acquire(coremap_lock);
+	for(int i=0; i < NUM_TLB; i++){
+	    tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(),i);
+	}
+	lock_release(coremap_lock);
 }
 
 void
 vm_tlbshootdown(const struct tlbshootdown *ts)
 {
 	(void)ts;
-	panic("dumbvm tried to do tlb shootdown?!\n");
 }
 
 int
@@ -254,11 +251,14 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 /* gets the coremap entry based on the virtual address */
 struct coremap_entry * coremap_find_entry_by_vaddr(vaddr_t addr){
+    lock_acquire(coremap_lock);
     for (int i = 0; i < num_pages; i++){
         if(coremap[i].vfn == addr){
+            lock_release(coremap_lock);
             return &coremap[i];
         }
-    }   
+    } 
+    lock_release(coremap_lock);  
     return NULL;
 }
 
@@ -277,9 +277,10 @@ paddr_t coremap_get_pages(int npages){
                 coremap[i].vfn = PADDR_TO_KVADDR(coremap[i].pfn);
                 lock_release(coremap_lock);
                 return coremap[i].pfn;
-            }        }
+            }        
+        }
         lock_release(coremap_lock);
-        return ENOMEM;
+        return 0;
     }
     else{
         kprintf("\nRequested more than one page!\n");

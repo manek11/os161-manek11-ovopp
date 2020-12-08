@@ -110,7 +110,8 @@ as_destroy(struct addrspace *as)
 void
 as_activate(void)
 {
-	int i, spl;
+	//int i, spl;
+	int spl;
 	struct addrspace *as;
 
 	as = proc_getas();
@@ -120,13 +121,14 @@ as_activate(void)
 
 	/* Disable interrupts on this CPU while frobbing the TLB. */
 	spl = splhigh();
-
+    
+    /*
 	for (i=0; i<NUM_TLB; i++) {
 		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
 	}
+	*/
 
 	splx(spl);
-	 
 
 }
 
