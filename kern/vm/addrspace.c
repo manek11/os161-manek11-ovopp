@@ -47,181 +47,164 @@
 /*
  * manager for creating addresspace.
  * 
-
-
 */
+
 struct addrspace *
 as_create(void)
 {
-	struct addrspace *as;
+    struct addrspace *as;
 
-	as = kmalloc(sizeof(struct addrspace));
-	if (as == NULL) {
-		return NULL;
-	}
+    as = kmalloc(sizeof(struct addrspace));
+    if (as == NULL) {
+        return NULL;
+    }
 
-	/*
-	 * Initialize as needed.
-	 */
+    /*
+    * Initialize as needed.
+    */
     as->as_vbase1 = 0;
     as->as_vbase2 = 0;
     as->as_npages1 = 0;
     as->as_npages2 = 0;
     as->as_heapbase = 0;
     as->as_stackpbase = 0;
-	return as;
+    return as;
 }
 
 int
 as_copy(struct addrspace *old, struct addrspace **ret)
 {
-	struct addrspace *newas;
+    struct addrspace *newas;
 
-	newas = as_create();
-	if (newas==NULL) {
-		return ENOMEM;
-	}
-	
-	newas->as_vbase1 = old->as_vbase1;
-	newas->as_vbase2 = old->as_vbase2;
-	newas->as_npages1 = old->as_npages1;
-	newas->as_npages2 = old->as_npages2;
-	newas->as_heapbase = newas->as_vbase2 + (newas->as_npages2*PAGE_SIZE);
-	newas->as_stackpbase = newas->as_heapbase;
+    newas = as_create();
+    if (newas==NULL) {
+        return ENOMEM;
+    }
 
-	/*
-	 * Write this.
-	 */
-
-	*ret = newas;
-	return 0;
+    newas->as_vbase1 = old->as_vbase1;
+    newas->as_vbase2 = old->as_vbase2;
+    newas->as_npages1 = old->as_npages1;
+    newas->as_npages2 = old->as_npages2;
+    newas->as_heapbase = newas->as_vbase2 + (newas->as_npages2*PAGE_SIZE);
+    newas->as_stackpbase = newas->as_heapbase;
+    
+    *ret = newas;
+    return 0;
 }
 
 void
 as_destroy(struct addrspace *as)
 {
-	/*
-	 * Clean up as needed.
-	 */
+    /*
+    * Clean up as needed.
+    */
 
-	kfree(as);
+    kfree(as);
 }
 
 void
 as_activate(void)
 {
-	//int i, spl;
-	int spl;
-	struct addrspace *as;
+    int spl;
+    struct addrspace *as;
 
-	as = proc_getas();
-	if (as == NULL) {
-		return;
-	}
+    as = proc_getas();
+    if (as == NULL) {
+        return;
+    }
 
-	/* Disable interrupts on this CPU while frobbing the TLB. */
-	spl = splhigh();
-    
-    /*
-	for (i=0; i<NUM_TLB; i++) {
-		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
-	}
-	*/
-
-	splx(spl);
-
+    /* Disable interrupts on this CPU while frobbing the TLB. */
+    spl = splhigh();
+    splx(spl);
 }
 
 void
 as_deactivate(void)
 {
-	/*
-	 * Write this. For many designs it won't need to actually do
-	 * anything. See proc.c for an explanation of why it (might)
-	 * be needed.
-	 */
+    /*
+    * Write this. For many designs it won't need to actually do
+    * anything. See proc.c for an explanation of why it (might)
+    * be needed.
+    */
 }
 
 /*
- * Set up a segment at virtual address VADDR of size MEMSIZE. The
- * segment in memory extends from VADDR up to (but not including)
- * VADDR+MEMSIZE.
- *
- * The READABLE, WRITEABLE, and EXECUTABLE flags are set if read,
- * write, or execute permission should be set on the segment. At the
- * moment, these are ignored. When you write the VM system, you may
- * want to implement them.
- */
+* Set up a segment at virtual address VADDR of size MEMSIZE. The
+* segment in memory extends from VADDR up to (but not including)
+* VADDR+MEMSIZE.
+*
+* The READABLE, WRITEABLE, and EXECUTABLE flags are set if read,
+* write, or execute permission should be set on the segment. At the
+* moment, these are ignored. When you write the VM system, you may
+* want to implement them.
+*/
 int
 as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
-		 int readable, int writeable, int executable)
+int readable, int writeable, int executable)
 {
-	/*
-	 * Write this.
-	 */
     // segments, base vaddr, array of pages (each entry of coremap uses the same pages), defining overlaps
     // we don't want multiple / overlapping segments
     int npages;
     (void)readable;
-	(void)writeable;
-	(void)executable;
+    (void)writeable;
+    (void)executable;
     sz += vaddr & ~(vaddr_t) PAGE_FRAME;
     vaddr &= PAGE_FRAME;
     sz = (sz + PAGE_SIZE - 1) & PAGE_FRAME;
     npages = sz / PAGE_SIZE;
+
     if (as->as_vbase1 == 0) {
-		as->as_vbase1 = vaddr;
-		as->as_npages1 = npages;
-		as->as_heapbase = as->as_vbase2 + (as->as_npages2 * PAGE_SIZE);
-		as->as_stackpbase = as->as_heapbase;
-		return 0;
-	}
+        as->as_vbase1 = vaddr;
+        as->as_npages1 = npages;
+        as->as_heapbase = as->as_vbase2 + (as->as_npages2 * PAGE_SIZE);
+        as->as_stackpbase = as->as_heapbase;
+    return 0;
+    }
 
-	if (as->as_vbase2 == 0) {
-		as->as_vbase2 = vaddr;
-		as->as_npages2 = npages;
-		as->as_heapbase = as->as_vbase2 + (as->as_npages2 * PAGE_SIZE);
-		as->as_stackpbase = as->as_heapbase;
-		return 0;
-	}
-
-	return ENOSYS;
+    if (as->as_vbase2 == 0) {
+        as->as_vbase2 = vaddr;
+        as->as_npages2 = npages;
+        as->as_heapbase = as->as_vbase2 + (as->as_npages2 * PAGE_SIZE);
+        as->as_stackpbase = as->as_heapbase;
+        return 0;
+    }
+    return ENOSYS;
 }
 
 int
 as_prepare_load(struct addrspace *as)
 {
-	/*
-	 * Write this.
-	 */
+    /*
+    * Write this.
+    */
 
-	(void)as;
-	return 0;
+    (void)as;
+    return 0;
 }
 
 int
 as_complete_load(struct addrspace *as)
 {
-	/*
-	 * Write this.
-	 */
+    /*
+    * Write this.
+    */
 
-	(void)as;
-	return 0;
+    (void)as;
+    return 0;
 }
 
 int
 as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 {
-	/*
-	 * Write this.
-	 */
+    /*
+    * Write this.
+    */
 
-	(void)as;
+    (void)as;
 
-	/* Initial user-level stack pointer */
-	*stackptr = USERSTACK;
+    /* Initial user-level stack pointer */
+    *stackptr = USERSTACK;
 
-	return 0;
+    return 0;
 }
 

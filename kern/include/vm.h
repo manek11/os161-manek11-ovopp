@@ -30,14 +30,6 @@
 #ifndef _VM_H_
 #define _VM_H_
 
-/*
- * VM system-related definitions.
- *
- * You'll probably want to add stuff here.
- */
-
-
-
 #include <machine/vm.h>
 
 /* Fault-type arguments to vm_fault() */
@@ -51,20 +43,21 @@
 #define FIXED   2
 #define CLEAN   3
 
-
+/*mapping virtual to physical address 
+ using timestamp we will check and evict the minimum time page */
 struct coremap_entry {
     int status;
-    
-    /* mapping virtual to physical address */
     struct addrspace *as;
     paddr_t pfn;
     vaddr_t vfn;
-    __time_t time_stamp; /* gettime()->tv_sec, we will check and evict the minimum time page */
-            
+    __time_t time_stamp; 
+
 };
+
+/*coremap lock*/
 struct lock *coremap_lock;
 
-/* CORE MAP FUNCTIONS */
+/* Coremap functions*/
 struct coremap_entry* coremap_find_entry_by_vaddr(vaddr_t addr);
 
 paddr_t coremap_get_pages(int npages);
@@ -82,6 +75,5 @@ void free_kpages(vaddr_t addr);
 /* TLB shootdown handling called from interprocessor_interrupt */
 void vm_tlbshootdown_all(void);
 void vm_tlbshootdown(const struct tlbshootdown *);
-
 
 #endif /* _VM_H_ */
