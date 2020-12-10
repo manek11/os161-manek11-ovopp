@@ -39,12 +39,6 @@
 #include <vm.h>
 
 /*
- * Note! If OPT_DUMBVM is set, as is the case until you start the VM
- * assignment, this file is not compiled or linked or in any way
- * used. The cheesy hack versions in dumbvm.c are used instead.
- */
-
-/*
  * manager for creating addresspace.
  * 
 */
@@ -105,17 +99,10 @@ as_destroy(struct addrspace *as)
 void
 as_activate(void)
 {
-    int spl;
-    struct addrspace *as;
-
-    as = proc_getas();
-    if (as == NULL) {
-        return;
-    }
-
-    /* Disable interrupts on this CPU while frobbing the TLB. */
-    spl = splhigh();
-    splx(spl);
+    /* 
+    * Should handle and swap pages during context switches 
+    */
+    
 }
 
 void

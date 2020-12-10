@@ -669,10 +669,11 @@ cmd_dispatch(char *cmd)
 
 			gettime(&after);
 			timespec_sub(&after, &before, &duration);
-
+            
 			kprintf("Operation took %llu.%09lu seconds\n",
 				(unsigned long long) duration.tv_sec,
 				(unsigned long) duration.tv_nsec);
+				
 
 			return result;
 		}
